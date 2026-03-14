@@ -1,0 +1,16 @@
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="avatarBg" x1="12" y1="10" x2="84" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#233B72"/>
+      <stop offset="1" stop-color="#6D9BFF"/>
+    </linearGradient>
+    <linearGradient id="avatarRing" x1="15" y1="15" x2="81" y2="81" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8CC8FF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <circle cx="48" cy="48" r="48" fill="url(#avatarBg)"/>
+  <circle cx="48" cy="48" r="32" fill="#DCE8FF" fill-opacity="0.22" stroke="url(#avatarRing)" stroke-width="1.5"/>
+  <circle cx="48" cy="39" r="10" fill="#EAF1FF"/>
+  <path d="M29 67C29 57.6112 37.0589 50 47 50H49C58.9411 50 67 57.6112 67 67V69H29V67Z" fill="#EAF1FF"/>
+</svg>
