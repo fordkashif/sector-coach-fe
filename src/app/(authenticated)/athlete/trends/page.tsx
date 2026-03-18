@@ -1,7 +1,11 @@
 "use client"
 
 import { LineChart } from "@mui/x-charts"
-import { mockAthletes, mockTrendSeries } from "@/lib/mock-data"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowRight01Icon, ArrowUp01Icon, StarAward02Icon } from "@hugeicons/core-free-icons"
+import { Link } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { mockAthletes, mockPRs, mockTestWeekResults, mockTrendSeries } from "@/lib/mock-data"
 
 const chartSx = {
   "& .MuiChartsAxis-line, & .MuiChartsAxis-tick": {
@@ -28,6 +32,8 @@ const chartSx = {
 export default function AthleteTrendsPage() {
   const athlete = mockAthletes[0]
   const trend = mockTrendSeries[athlete.id] ?? []
+  const athletePrs = mockPRs.filter((pr) => pr.athleteId === athlete.id).slice(0, 4)
+  const latestTest = mockTestWeekResults.find((row) => row.athleteId === athlete.id)
 
   const averages = trend.length
     ? {
@@ -37,17 +43,29 @@ export default function AthleteTrendsPage() {
       }
     : { readiness: 0, fatigue: 0, load: 0 }
 
+  const latestPoint = trend[trend.length - 1]
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Trends</h1>
-          <p className="text-sm text-slate-500">Readiness, fatigue, and training load over your recent training days.</p>
+      <section className="page-intro">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="page-intro-title">Progress</h1>
+            <p className="page-intro-copy">Best marks, trend lines, and testing signals in one athlete progress surface.</p>
+          </div>
+          <div className="hidden flex-wrap gap-2 md:flex">
+            <Button asChild variant="outline" className="h-11 rounded-full border-slate-200 px-5 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
+              <Link to="/athlete/prs">All PRs</Link>
+            </Button>
+            <Button asChild className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95">
+              <Link to="/athlete/test-week">Open test week</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+        <div className="mobile-card-primary">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Trend Lines</p>
@@ -65,9 +83,9 @@ export default function AthleteTrendsPage() {
               <div className="overflow-hidden rounded-[18px] border border-[#d9e6f7] bg-[radial-gradient(circle_at_top,rgba(31,140,255,0.16),transparent_45%),linear-gradient(180deg,#fbfdff_0%,#eef5ff_100%)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:rounded-[22px] sm:p-3">
                 <div className="mb-3 grid grid-cols-3 gap-2">
                   {[
-                    { label: "Readiness", value: trend[trend.length - 1].readiness, tone: "bg-[#1f8cff]" },
-                    { label: "Load", value: trend[trend.length - 1].trainingLoad, tone: "bg-[#4759ff]" },
-                    { label: "Fatigue", value: trend[trend.length - 1].fatigue, tone: "bg-slate-900" },
+                    { label: "Readiness", value: latestPoint?.readiness ?? 0, tone: "bg-[#1f8cff]" },
+                    { label: "Load", value: latestPoint?.trainingLoad ?? 0, tone: "bg-[#4759ff]" },
+                    { label: "Fatigue", value: latestPoint?.fatigue ?? 0, tone: "bg-slate-900" },
                   ].map((item) => (
                     <div key={item.label} className="rounded-[14px] border border-white/80 bg-white/80 px-3 py-2.5 backdrop-blur">
                       <div className="flex items-center gap-2">
@@ -106,7 +124,7 @@ export default function AthleteTrendsPage() {
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+          <div className="mobile-card-primary">
             <div className="space-y-1 border-b border-slate-200 pb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Averages</p>
               <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Baseline View</h2>
@@ -125,34 +143,82 @@ export default function AthleteTrendsPage() {
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+          <div className="mobile-card-primary">
             <div className="space-y-1 border-b border-slate-200 pb-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Latest Day</p>
-              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Most Recent Check</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Testing</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Latest Benchmarks</h2>
             </div>
-            {trend.length > 0 ? (
-              <div className="mt-4 space-y-3">
-                {[
-                  { label: "Readiness", value: trend[trend.length - 1].readiness, tone: "bg-[#1f8cff]" },
-                  { label: "Fatigue", value: trend[trend.length - 1].fatigue, tone: "bg-slate-900" },
-                  { label: "Training load", value: trend[trend.length - 1].trainingLoad, tone: "bg-[#4759ff]" },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="mb-1.5 flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-950">{item.label}</span>
-                      <span className="text-slate-500">{item.value}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-200">
-                      <div className={item.tone} style={{ width: `${item.value}%`, height: "100%", borderRadius: 9999 }} />
-                    </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {[
+                { label: "30m", value: latestTest?.thirtyM?.value ?? "-" },
+                { label: "Flying 30m", value: latestTest?.flyingThirtyM?.value ?? "-" },
+                { label: "Squat 1RM", value: latestTest?.squat1RM?.value ?? "-" },
+                { label: "CMJ", value: latestTest?.cmj?.value ?? "-" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
+                  <p className="mt-1.5 text-lg font-semibold tracking-[-0.03em] text-slate-950">{item.value}</p>
+                </div>
+              ))}
+            </div>
+            <Button asChild variant="outline" className="mt-4 h-11 w-full rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
+              <Link to="/athlete/test-week">
+                Open test week
+                <HugeiconsIcon icon={StarAward02Icon} className="size-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="mobile-card-primary">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">PR Momentum</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Recent Bests</h2>
+            </div>
+            <Button asChild variant="outline" className="mobile-action-secondary">
+              <Link to="/athlete/prs">
+                View all PRs
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+              </Link>
+            </Button>
+          </div>
+          <div className="mt-4 space-y-3">
+            {athletePrs.map((pr) => (
+              <div key={pr.id} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">{pr.event}</p>
+                    <p className="mt-1 text-sm text-slate-500">{pr.date}</p>
                   </div>
-                ))}
+                  <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#1f8cff]">
+                    <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" />
+                    {pr.bestValue}
+                  </span>
+                </div>
+                {pr.previousValue ? <p className="mt-2 text-xs text-slate-500">Previous {pr.previousValue}</p> : null}
               </div>
-            ) : (
-              <div className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                No recent trend point available.
-              </div>
-            )}
+            ))}
+          </div>
+        </div>
+
+        <div className="mobile-card-primary">
+          <div className="space-y-1 border-b border-slate-200 pb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Progress Workflow</p>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Quick Actions</h2>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {[
+              { label: "All PRs", href: "/athlete/prs" },
+              { label: "Submit test week", href: "/athlete/test-week" },
+              { label: "Back to today", href: "/athlete/home" },
+            ].map((item) => (
+              <Button key={item.href} asChild variant="outline" className="mobile-action-secondary">
+                <Link to={item.href}>{item.label}</Link>
+              </Button>
+            ))}
           </div>
         </div>
       </section>

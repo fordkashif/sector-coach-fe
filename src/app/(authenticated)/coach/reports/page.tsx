@@ -1,8 +1,16 @@
 "use client"
 
-import { ArrowUp01Icon, FileDownloadIcon, PrinterIcon } from "@hugeicons/core-free-icons"
+import {
+  ArrowUp01Icon,
+  ChartAverageIcon,
+  CheckmarkCircle02Icon,
+  FileDownloadIcon,
+  NoteEditIcon,
+  PrinterIcon,
+  WorkoutRunIcon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { BarChart, PieChart } from "@mui/x-charts"
+import { BarChart } from "@mui/x-charts"
 import { Button } from "@/components/ui/button"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
 import { mockAthletes, mockPRs, mockTeams, mockWellness } from "@/lib/mock-data"
@@ -24,13 +32,6 @@ const chartSx = {
   "& .MuiBarElement-root": {
     rx: 8,
     ry: 8,
-  },
-}
-
-const pieSx = {
-  "& .MuiPieArc-root": {
-    stroke: "#ffffff",
-    strokeWidth: 3,
   },
 }
 
@@ -77,11 +78,6 @@ export default function CoachReportsPage() {
   )
     .sort((left, right) => right[1] - left[1])
     .slice(0, 5)
-  const readinessPieData = [
-    { id: "ready", value: readinessSummary.green, label: "Ready", color: "#1f8cff" },
-    { id: "watch", value: readinessSummary.yellow, label: "Watch", color: "#fbbf24" },
-    { id: "review", value: readinessSummary.red, label: "Review", color: "#f43f5e" },
-  ]
   const prChartRows = prByCategory.map(([category, count]) => ({ category, count }))
   const adherenceChartRows = lowAdherenceRows.map((athlete) => ({
     athlete: athlete.name.split(" ")[0],
@@ -103,6 +99,40 @@ export default function CoachReportsPage() {
     { label: "Mood", value: wellnessAverages.mood, max: 5, tone: "bg-[#4759ff]" },
     { label: "Fatigue", value: wellnessAverages.fatigue, max: 5, tone: "bg-amber-400" },
     { label: "Stress", value: wellnessAverages.stress, max: 5, tone: "bg-rose-400" },
+  ]
+  const overviewCards = [
+    {
+      label: "Readiness",
+      value: readinessSummary.green,
+      suffix: readinessTotal ? `/${readinessTotal} ready` : "No athletes",
+      tone: "border-slate-200 bg-white",
+      badgeTone: "bg-[#e8f2ff]",
+      icon: CheckmarkCircle02Icon,
+    },
+    {
+      label: "Plan Adherence",
+      value: adherenceAverage,
+      suffix: "% avg",
+      tone: "border-slate-200 bg-white",
+      badgeTone: "bg-[#f0e9ff]",
+      icon: ChartAverageIcon,
+    },
+    {
+      label: "PR Movement",
+      value: scopedPrs.length,
+      suffix: "records",
+      tone: "border-slate-200 bg-white",
+      badgeTone: "bg-[#fff0e5]",
+      icon: WorkoutRunIcon,
+    },
+    {
+      label: "Daily Logs",
+      value: scopedWellness.length,
+      suffix: "wellness",
+      tone: "border-slate-200 bg-white",
+      badgeTone: "bg-[#edf5df]",
+      icon: NoteEditIcon,
+    },
   ]
 
   const exportAthleteAdherence = () => {
@@ -153,125 +183,128 @@ export default function CoachReportsPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
-      <section className="rounded-[28px] border border-[#d7e5f8] bg-[linear-gradient(135deg,#ffffff_0%,#f4f8fc_58%,#eef5ff_100%)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section className="space-y-4 pt-1">
+        <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-full bg-[#eef5ff] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1f5fd1]">
-                {scopedTeam?.eventGroup ?? "Coach"}
-              </span>
-              <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                {scopedAthletes.length} athletes
-              </span>
-            </div>
-            <h1 className="text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl">Reports</h1>
-            <p className="max-w-2xl text-sm text-slate-500">
+            <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">Reports</h1>
+            <p className="max-w-xl text-[0.95rem] leading-6 text-slate-600">
               Review adherence risk, wellness signals, and PR movement across the active squad.
               {scopedTeam ? ` Viewing ${scopedTeam.name}.` : ""}
             </p>
           </div>
-          <div className="hidden flex-wrap gap-2 lg:flex">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-full border-slate-200 px-5 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
-              onClick={exportAthleteAdherence}
-            >
-              <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
-              Adherence CSV
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-full border-slate-200 px-5 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
-              onClick={exportPrs}
-            >
-              <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
-              PR CSV
-            </Button>
-            <Button
-              type="button"
-              className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
-              onClick={exportWellness}
-            >
-              <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
-              Wellness CSV
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={exportWellness}
+            aria-label="Export wellness CSV"
+            className="flex size-14 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_14px_34px_rgba(31,140,255,0.32),0_0_28px_rgba(71,89,255,0.18)] hover:opacity-95"
+          >
+            <HugeiconsIcon icon={FileDownloadIcon} className="size-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {overviewCards.map((card) => (
+            <div key={card.label} className={cn("rounded-[26px] border p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]", card.tone)}>
+              <div className="flex items-center gap-2.5">
+                <div className={cn("flex size-10 items-center justify-center rounded-full", card.badgeTone)}>
+                  <HugeiconsIcon icon={card.icon} className="size-4 text-slate-950" />
+                </div>
+                <p className="text-sm font-medium leading-5 text-slate-700">{card.label}</p>
+              </div>
+              <div className="mt-2 flex items-end gap-1">
+                <p className="text-[2rem] font-semibold leading-none tracking-[-0.06em] text-slate-950">{card.value}</p>
+                <p className="pb-1 text-sm text-slate-500">{card.suffix}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 lg:hidden">
+          <Button type="button" variant="outline" className="mobile-action-secondary bg-white" onClick={exportAthleteAdherence}>
+            <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
+            Adherence
+          </Button>
+          <Button type="button" variant="outline" className="mobile-action-secondary bg-white" onClick={exportPrs}>
+            <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
+            PR CSV
+          </Button>
+        </div>
+        <div className="hidden flex-wrap gap-2 lg:flex">
+          <Button
+            type="button"
+            variant="outline"
+            className="mobile-action-secondary bg-white px-5"
+            onClick={exportAthleteAdherence}
+          >
+            <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
+            Adherence CSV
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="mobile-action-secondary bg-white px-5"
+            onClick={exportPrs}
+          >
+            <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
+            PR CSV
+          </Button>
+          <Button
+            type="button"
+            className="mobile-action-primary"
+            onClick={exportWellness}
+          >
+            <HugeiconsIcon icon={FileDownloadIcon} className="size-4" />
+            Wellness CSV
+          </Button>
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Report Snapshot</p>
-              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Current Squad State</h2>
-              <p className="text-sm text-slate-500">Readiness mix, plan adherence, and scoped data volume.</p>
-            </div>
-            <div className="grid grid-cols-3 gap-2 lg:w-[240px]">
-              {[
-                { label: "Athletes", value: scopedAthletes.length },
-                { label: "PRs", value: scopedPrs.length },
-                { label: "Logs", value: scopedWellness.length },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3 text-center">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</p>
-                  <p className="mt-1.5 text-2xl font-semibold tracking-[-0.05em] text-slate-950">{item.value}</p>
-                </div>
-              ))}
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Readiness Snapshot</p>
+              <h2 className="text-[1.8rem] font-semibold leading-none tracking-[-0.055em] text-slate-950">Current Squad State</h2>
+              <p className="text-sm text-slate-500">One view of readiness mix, adherence, and daily recovery.</p>
             </div>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.7fr)]">
             <div className="space-y-4">
-              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-3.5 sm:rounded-[22px] sm:p-4">
+              <div className="rounded-[28px] border border-slate-200 bg-white p-3.5 shadow-[0_16px_40px_rgba(15,23,42,0.05)] sm:p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-medium text-slate-950">Readiness Mix</p>
+                  <p className="text-sm font-medium text-slate-950">Readiness Status</p>
                   <p className="text-xs text-slate-500">{readinessTotal} athletes</p>
                 </div>
-                <div className="relative h-[220px] overflow-hidden rounded-[18px] border border-slate-200 bg-[radial-gradient(circle_at_top,rgba(31,140,255,0.10),transparent_48%),linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)]">
-                  <PieChart
-                    series={[
-                      {
-                        innerRadius: 52,
-                        outerRadius: 82,
-                        paddingAngle: 3,
-                        cornerRadius: 6,
-                        data: readinessPieData,
-                        cx: 110,
-                        cy: 108,
-                      },
-                    ]}
-                    hideLegend
-                    margin={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    height={220}
-                    sx={pieSx}
-                  />
-                  <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">In Scope</p>
-                    <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-slate-950">{readinessTotal}</p>
-                    <p className="mt-1 text-sm text-slate-500">athletes</p>
-                  </div>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
+                <div className="mt-3 space-y-2.5">
                   {[
                     { label: "Ready", value: readinessSummary.green, tone: "bg-[#1f8cff]" },
                     { label: "Watch", value: readinessSummary.yellow, tone: "bg-amber-400" },
                     { label: "Review", value: readinessSummary.red, tone: "bg-rose-500" },
                   ].map((item) => (
-                    <div key={item.label} className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("size-2 rounded-full", item.tone)} />
-                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
+                    <div key={item.label} className="rounded-[18px] border border-slate-200 bg-[#fbfcfe] px-4 py-3.5 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <span className={cn("size-2.5 rounded-full", item.tone)} />
+                          <div>
+                            <p className="text-sm font-medium text-slate-950">{item.label}</p>
+                            <p className="text-xs text-slate-500">
+                              {item.label === "Ready"
+                                ? "Available to train"
+                                : item.label === "Watch"
+                                  ? "Monitor workload"
+                                  : "Needs review"}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-2xl font-semibold tracking-[-0.05em] text-slate-950">{item.value}</p>
                       </div>
-                      <p className="mt-1.5 text-xl font-semibold tracking-[-0.04em] text-slate-950">{item.value}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-3.5 sm:rounded-[22px] sm:p-4">
+              <div className="rounded-[24px] border border-slate-200 bg-[#fffaf4] p-4 shadow-[0_14px_32px_rgba(15,23,42,0.04)]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Plan Adherence</p>
                 <div className="mt-2 flex items-end justify-between gap-3">
                   <p className="text-3xl font-semibold tracking-[-0.05em] text-slate-950">{adherenceAverage}%</p>
@@ -282,7 +315,7 @@ export default function CoachReportsPage() {
               </div>
             </div>
 
-            <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-[28px] border border-slate-200 bg-[#f9fcf5] p-4 shadow-[0_16px_40px_rgba(15,23,42,0.05)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Wellness Signals</p>
@@ -307,10 +340,10 @@ export default function CoachReportsPage() {
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Exports</p>
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Output Actions</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Takeaway Actions</h2>
           </div>
           <div className="mt-4 space-y-3">
             {[
@@ -356,7 +389,7 @@ export default function CoachReportsPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-full rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
+              className="mobile-action-secondary w-full"
               onClick={() => window.print()}
             >
               <HugeiconsIcon icon={PrinterIcon} className="size-4" />
@@ -367,14 +400,14 @@ export default function CoachReportsPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Adherence Risk</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Who Needs Follow-Up</h2>
           </div>
           <div className="mt-4">
             {lowAdherenceRows.length > 0 ? (
-              <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] p-2.5 sm:rounded-[22px] sm:p-3">
+              <div className="mobile-card-secondary overflow-hidden p-2.5 sm:p-3">
                 <BarChart
                   dataset={adherenceChartRows}
                   xAxis={[{ scaleType: "band", dataKey: "athlete" }]}
@@ -394,14 +427,14 @@ export default function CoachReportsPage() {
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">PR Movement</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Where Improvement Is Landing</h2>
           </div>
           <div className="mt-4">
             {prByCategory.length > 0 ? (
-              <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] p-2.5 sm:rounded-[22px] sm:p-3">
+              <div className="mobile-card-secondary overflow-hidden p-2.5 sm:p-3">
                 <BarChart
                   dataset={prChartRows}
                   xAxis={[{ scaleType: "band", dataKey: "category" }]}
@@ -419,7 +452,7 @@ export default function CoachReportsPage() {
             )}
           </div>
 
-          <div className="mt-5 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+          <div className="mobile-card-secondary mt-5">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Recent Records</p>
               <h3 className="text-lg font-semibold tracking-[-0.03em] text-slate-950">Latest Improvements</h3>
@@ -427,7 +460,7 @@ export default function CoachReportsPage() {
             <div className="mt-4 space-y-3">
               {recentPrs.length > 0 ? (
                 recentPrs.map((pr) => (
-                  <div key={pr.id} className="rounded-[16px] border border-slate-200 bg-white px-3.5 py-3">
+                  <div key={pr.id} className="rounded-[20px] border border-slate-200 bg-[#fbfcfe] px-3.5 py-3 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-slate-950">{pr.athleteName}</p>

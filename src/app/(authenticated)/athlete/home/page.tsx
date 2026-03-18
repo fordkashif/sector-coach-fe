@@ -1,8 +1,22 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon, ArrowUp01Icon } from "@hugeicons/core-free-icons"
+import { ArrowRight01Icon, ArrowUp01Icon, CheckmarkCircle02Icon, Clock01Icon, NoteIcon } from "@hugeicons/core-free-icons"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { mockAthletes, mockCurrentSession, mockPRs, mockTestWeekResults, mockTrendSeries, mockTrainingPlans, mockTeams } from "@/lib/mock-data"
+import {
+  mockAthletes,
+  mockCurrentSession,
+  mockPRs,
+  mockTestWeekResults,
+  mockTrendSeries,
+  mockTrainingPlans,
+  mockTeams,
+  type SessionBlock,
+} from "@/lib/mock-data"
+import { blockStatus, defaultSessionProgress, progressForCurrentSession, SESSION_PROGRESS_STORAGE_KEY, type SessionProgress } from "@/lib/athlete-session"
+import { tenantStorageKey } from "@/lib/tenant-storage"
 import { cn } from "@/lib/utils"
 
 function buildTrendPath(points: number[], width: number, height: number, padding = 12) {
@@ -19,6 +33,14 @@ function buildTrendPath(points: number[], width: number, height: number, padding
     .join(" ")
 }
 
+const sessionTypeTones: Record<SessionBlock["type"], string> = {
+  Sprint: "bg-[#dbeafe] text-[#1d4ed8]",
+  Run: "bg-[#fef3c7] text-[#b45309]",
+  Strength: "bg-[#ede9fe] text-[#6d28d9]",
+  Jumps: "bg-[#dcfce7] text-[#15803d]",
+  Throws: "bg-[#fee2e2] text-[#be123c]",
+}
+
 export default function AthleteHomePage() {
   const athlete = mockAthletes[0]
   const trend = mockTrendSeries[athlete.id] ?? []
@@ -28,11 +50,35 @@ export default function AthleteHomePage() {
     (plan) => plan.teamId === athlete.teamId || (plan.assignedTo === "athlete" && plan.assignedAthleteIds?.includes(athlete.id)),
   )
   const team = mockTeams.find((item) => item.id === athlete.teamId)
+  const [progress, setProgress] = useState<SessionProgress>(() => {
+    if (typeof window === "undefined") return defaultSessionProgress()
+    return progressForCurrentSession(window.localStorage.getItem(tenantStorageKey(SESSION_PROGRESS_STORAGE_KEY)))
+  })
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const syncProgress = () => {
+      setProgress(progressForCurrentSession(window.localStorage.getItem(tenantStorageKey(SESSION_PROGRESS_STORAGE_KEY))))
+    }
+
+    syncProgress()
+    window.addEventListener("focus", syncProgress)
+    window.addEventListener("storage", syncProgress)
+    return () => {
+      window.removeEventListener("focus", syncProgress)
+      window.removeEventListener("storage", syncProgress)
+    }
+  }, [])
 
   const readinessValues = trend.map((point) => point.readiness)
   const fatigueValues = trend.map((point) => point.fatigue)
   const readinessPath = buildTrendPath(readinessValues, 520, 180)
   const fatiguePath = buildTrendPath(fatigueValues, 520, 180)
+  const completedCount = progress.completedBlockIds.length
+  const currentBlock = mockCurrentSession.blocks[progress.currentBlockIndex] ?? mockCurrentSession.blocks[0]
+  const allComplete = completedCount === mockCurrentSession.blocks.length
+  const sessionPercent = Math.round((completedCount / mockCurrentSession.blocks.length) * 100)
+  const nextActionLabel = allComplete ? "Review session" : completedCount > 0 ? "Resume session" : "Start session"
 
   const readinessTone =
     athlete.readiness === "green"
@@ -41,69 +87,100 @@ export default function AthleteHomePage() {
         ? "bg-amber-100 text-amber-700"
         : "bg-rose-100 text-rose-700"
 
-  const sessionTypeTones: Record<string, string> = {
-    Sprint: "bg-[#dbeafe] text-[#1d4ed8]",
-    Strength: "bg-[#ede9fe] text-[#6d28d9]",
-    Plyometrics: "bg-[#dcfce7] text-[#15803d]",
-    Run: "bg-[#fef3c7] text-[#b45309]",
-  }
+  const sessionTone = useMemo(() => {
+    if (allComplete) return { label: "Completed", tone: "bg-emerald-100 text-emerald-700" }
+    if (completedCount > 0 || mockCurrentSession.status === "in-progress") {
+      return { label: "In Progress", tone: "bg-amber-100 text-amber-700" }
+    }
+    return { label: "Not Started", tone: "bg-slate-200 text-slate-700" }
+  }, [allComplete, completedCount])
+
+  const nextActions = [
+    { title: nextActionLabel, href: "/athlete/log", primary: true },
+    { title: "Wellness check-in", href: "/athlete/wellness", primary: false },
+    { title: "Open training plan", href: "/athlete/training-plan", primary: false },
+  ]
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Home</h1>
-            <p className="text-sm text-slate-500">
-              Track today&apos;s work, your readiness, and the next major checkpoints in one place.
-            </p>
-          </div>
-          <div className="hidden flex-wrap gap-2 md:flex">
-            <Button asChild variant="outline" className="h-11 rounded-full border-slate-200 px-5 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
-              <Link to="/athlete/wellness">Check in</Link>
-            </Button>
-            <Button asChild variant="outline" className="h-11 rounded-full border-slate-200 px-5 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
-              <Link to="/athlete/training-plan">My plan</Link>
-            </Button>
-            <Button asChild className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95">
-              <Link to="/athlete/log">Log Session</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.8fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
+        <div className="mobile-proof-hero">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Today</p>
-              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Session Focus</h2>
-              <p className="text-sm text-slate-500">{mockCurrentSession.title}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="mobile-pill-accent">Today</span>
+                <span className="mobile-pill-muted">{mockCurrentSession.estimatedDuration}</span>
+              </div>
+              <h1 className="mobile-proof-title">Today&apos;s Workout</h1>
+              <p className="mobile-proof-copy">
+                {mockCurrentSession.title} on {mockCurrentSession.scheduledFor}. Move straight into the session and log the work block by block.
+              </p>
             </div>
-            <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", readinessTone)}>
-              {athlete.readiness === "green" ? "Ready" : athlete.readiness === "yellow" ? "Watch" : "Review"}
-            </span>
+            <div className="flex flex-wrap gap-2">
+              <span className={cn("inline-flex rounded-full px-3 py-1.5 text-xs font-semibold", readinessTone)}>
+                {athlete.readiness === "green" ? "Ready" : athlete.readiness === "yellow" ? "Watch" : "Review"}
+              </span>
+              <span className={cn("inline-flex rounded-full px-3 py-1.5 text-xs font-semibold", sessionTone.tone)}>{sessionTone.label}</span>
+            </div>
           </div>
 
-          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.72fr)]">
+          <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(250px,0.78fr)]">
             <div className="space-y-3">
-              {mockCurrentSession.blocks.map((block) => (
-                <div key={block.name} className="rounded-[18px] border border-slate-200 bg-slate-50 px-3.5 py-3.5 sm:rounded-[20px] sm:px-4 sm:py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-950">{block.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">Primary block in today&apos;s session.</p>
-                    </div>
-                    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", sessionTypeTones[block.type] ?? "bg-slate-200 text-slate-700")}>
-                      {block.type}
-                    </span>
+              <div className="rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#031733_0%,#0b2d63_100%)] px-4 py-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8db8ff]">Current block</p>
+                <div className="mt-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xl font-semibold tracking-[-0.04em]">{currentBlock?.name ?? "No active block"}</p>
+                    <p className="mt-1 text-sm text-white/72">{currentBlock?.focus ?? "No current session block available."}</p>
                   </div>
+                  {currentBlock ? (
+                    <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", sessionTypeTones[currentBlock.type])}>{currentBlock.type}</span>
+                  ) : null}
                 </div>
-              ))}
+                {currentBlock ? (
+                  <div className="mt-4 rounded-[16px] border border-white/10 bg-white/10 px-3.5 py-3 backdrop-blur">
+                    <div className="flex items-center gap-2 text-xs text-white/72">
+                      <HugeiconsIcon icon={Clock01Icon} className="size-4" />
+                      {currentBlock.rest ? `Rest ${currentBlock.rest}` : "No rest target"}
+                    </div>
+                    <p className="mt-2 text-sm text-white/80">{currentBlock.coachNote}</p>
+                  </div>
+                ) : null}
+              </div>
+
+              {mockCurrentSession.blocks.map((block, index) => {
+                const status = blockStatus(progress, block)
+                return (
+                  <div key={block.id} className="rounded-[18px] border border-slate-200 bg-slate-50 px-3.5 py-3.5 sm:rounded-[20px] sm:px-4 sm:py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-950">{index + 1}. {block.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">{block.focus}</p>
+                      </div>
+                      <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", sessionTypeTones[block.type])}>
+                        {block.type}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-slate-500">{block.rest ? `Rest ${block.rest}` : "No rest target"}</span>
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          status === "completed" ? "text-emerald-700" : status === "in-progress" ? "text-[#1368ff]" : "text-slate-400",
+                        )}
+                      >
+                        {status === "completed" ? "Completed" : status === "in-progress" ? "In progress" : "Up next"}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 lg:gap-3">
               {[
+                { label: "Session progress", value: `${sessionPercent}%` },
+                { label: "Completed blocks", value: `${completedCount}/${mockCurrentSession.blocks.length}` },
                 { label: "Last check-in", value: athlete.lastWellness },
                 { label: "Team", value: team?.name ?? "-" },
                 { label: "Active plan", value: assignedPlan ? `${assignedPlan.weeks} wk` : "None" },
@@ -113,24 +190,28 @@ export default function AthleteHomePage() {
                   <p className="mt-1.5 text-lg font-semibold tracking-[-0.04em] text-slate-950 sm:text-2xl">{item.value}</p>
                 </div>
               ))}
-              <Button asChild className="col-span-2 h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95 lg:col-span-1">
-                <Link to="/athlete/log">Log Session</Link>
+              <Button asChild className="col-span-2 h-12 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95 lg:col-span-1">
+                <Link to="/athlete/log">{nextActionLabel}</Link>
               </Button>
+              <div className="col-span-2 flex gap-2 lg:hidden">
+                <Button asChild variant="outline" className="h-12 flex-1 rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
+                  <Link to="/athlete/wellness">Check in</Link>
+                </Button>
+                <Button asChild variant="outline" className="h-12 flex-1 rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
+                  <Link to="/athlete/training-plan">My plan</Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Next Required Action</p>
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Today&apos;s Actions</h2>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Today&apos;s Priorities</h2>
           </div>
           <div className="mt-4 space-y-3">
-            {[
-              { title: "Wellness check-in", href: "/athlete/wellness", primary: true },
-              { title: "Open training plan", href: "/athlete/training-plan", primary: false },
-              { title: "Submit test week", href: "/athlete/test-week", primary: false },
-            ].map((item) => (
+            {nextActions.map((item) => (
               <Button
                 key={item.title}
                 asChild
@@ -146,11 +227,30 @@ export default function AthleteHomePage() {
               </Button>
             ))}
           </div>
+
+          <div className="mt-4 space-y-3">
+            <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <HugeiconsIcon icon={NoteIcon} className="size-4" />
+                Coach focus
+              </div>
+              <p className="mt-2 text-sm text-slate-500">{mockCurrentSession.coachNote}</p>
+            </div>
+            {allComplete ? (
+              <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4" />
+                  Session complete
+                </div>
+                <p className="mt-2 text-sm text-emerald-700/80">Today&apos;s work is logged. Review your progress or open testing next.</p>
+              </div>
+            ) : null}
+          </div>
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Readiness Trend</p>
@@ -200,7 +300,7 @@ export default function AthleteHomePage() {
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+          <div className="mobile-card-primary">
             <div className="space-y-1 border-b border-slate-200 pb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">PR Momentum</p>
               <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Recent Bests</h2>
@@ -236,7 +336,7 @@ export default function AthleteHomePage() {
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+          <div className="mobile-card-primary">
             <div className="space-y-1 border-b border-slate-200 pb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Testing</p>
               <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Upcoming Test Week</h2>

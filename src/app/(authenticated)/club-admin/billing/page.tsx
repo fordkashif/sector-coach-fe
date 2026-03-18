@@ -1,4 +1,4 @@
-"use client"
+ï»¿"use client"
 
 import { useState } from "react"
 import { ClubAdminNav } from "@/components/club-admin/admin-nav"
@@ -48,18 +48,18 @@ export default function ClubAdminBillingPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
+      <section className="page-intro">
         <div className="space-y-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Subscription & Billing</h1>
-            <p className="text-sm text-slate-500">Manage plan level, seats, payment details, and invoice history.</p>
+            <h1 className="page-intro-title">Subscription & Billing</h1>
+            <p className="page-intro-copy">Manage plan level, seats, payment details, and invoice history.</p>
           </div>
           <ClubAdminNav />
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Current Subscription</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Billing Controls</h2>
@@ -105,7 +105,7 @@ export default function ClubAdminBillingPage() {
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Subscription Summary</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Current Plan</h2>
@@ -123,13 +123,13 @@ export default function ClubAdminBillingPage() {
             ))}
             <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Payment method</p>
-              <p className="mt-1.5 text-lg font-semibold tracking-[-0.03em] text-slate-950">•••• {billing.paymentMethodLast4}</p>
+              <p className="mt-1.5 text-lg font-semibold tracking-[-0.03em] text-slate-950">â€¢â€¢â€¢â€¢ {billing.paymentMethodLast4}</p>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+      <section className="mobile-card-primary">
         <div className="space-y-1 border-b border-slate-200 pb-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Invoices</p>
           <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Billing History</h2>
@@ -152,3 +152,4 @@ export default function ClubAdminBillingPage() {
     </div>
   )
 }
+

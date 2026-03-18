@@ -17,7 +17,7 @@ import {
   ZapIcon,
 } from "@hugeicons/core-free-icons"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useTheme } from "next-themes"
 import { getCoachScope } from "@/lib/coach-scope"
@@ -55,7 +55,7 @@ const athleteLinks: ShellLink[] = [
   { href: "/athlete/home", label: "Home", icon: Home01Icon },
   { href: "/athlete/training-plan", label: "Plan", icon: AssignmentsIcon },
   { href: "/athlete/log", label: "Log", icon: TextCreationIcon },
-  { href: "/athlete/test-week", label: "Tests", icon: StarAward02Icon },
+  { href: "/athlete/trends", label: "Progress", icon: PieChartSquareIcon },
   { href: "/athlete/profile", label: "Profile", icon: UserStoryIcon },
 ]
 
@@ -74,7 +74,7 @@ function getRoleLabel(role: string) {
 }
 
 function getProfileImage(role: string) {
-  if (role === "coach") return "/avatar-placeholder.svg"
+  if (role === "coach") return "/coach-avatar.png"
   if (role === "athlete") return "/avatar-placeholder.svg"
   return "/avatar-placeholder.svg"
 }
@@ -84,6 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
+  const [mobileDetailMode, setMobileDetailMode] = useState(false)
   const useSectionBoundTopTone =
     pathname.startsWith("/coach/dashboard") ||
     pathname.startsWith("/coach/teams") ||
@@ -123,6 +124,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" })
     }
   }, [pathname])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setMobileDetailMode(Boolean((window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE))
+    }
+
+    const handleMobileDetailMode = (event: Event) => {
+      const customEvent = event as CustomEvent<{ active?: boolean }>
+      setMobileDetailMode(Boolean(customEvent.detail?.active))
+    }
+
+    window.addEventListener("pacelab:mobile-detail-mode", handleMobileDetailMode as EventListener)
+    return () => {
+      window.removeEventListener("pacelab:mobile-detail-mode", handleMobileDetailMode as EventListener)
+    }
+  }, [])
+
+  const handleMobileBack = () => {
+    window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-back"))
+  }
 
   const handleSignOut = () => {
     window.localStorage.removeItem(MOCK_ROLE_STORAGE_KEY)
@@ -211,56 +232,94 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={cn(
           "flex min-w-0 flex-1 flex-col overflow-hidden",
           useSectionBoundTopTone
-            ? "bg-[linear-gradient(180deg,#f3f6fb_0%,#eef3f8_100%)]"
-            : "bg-[linear-gradient(180deg,#06101d_0%,#091425_160px,#f3f6fb_160px,#eef3f8_100%)]",
+            ? "bg-[linear-gradient(180deg,#f3f6fb_0%,#eef3f8_100%)] lg:bg-[linear-gradient(180deg,#f3f6fb_0%,#eef3f8_100%)]"
+            : "bg-[linear-gradient(180deg,#f3f6fb_0%,#eef3f8_100%)] lg:bg-[linear-gradient(180deg,#06101d_0%,#091425_160px,#f3f6fb_160px,#eef3f8_100%)]",
         )}
       >
         <header
           className={cn(
-            "px-4 pt-4 text-white sm:px-6 lg:px-8 lg:pt-4",
-            useSectionBoundTopTone ? "bg-[#06101d] pb-4 lg:pb-4" : "pb-2 lg:pb-0",
+            "px-4 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-6 lg:px-8 lg:pt-4",
+            "bg-[#f2f5fa] pb-3 text-slate-950 lg:bg-[linear-gradient(180deg,#f3f6fb_0%,#eef3f8_100%)] lg:text-white",
+            useSectionBoundTopTone ? "lg:bg-[#06101d] lg:pb-4" : "lg:pb-0",
           )}
         >
           <div className="py-0 lg:bg-transparent">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 lg:hidden">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] shadow-[0_10px_32px_rgba(31,140,255,0.3)]">
-                      <HugeiconsIcon icon={ZapIcon} className="size-4 text-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[11px] font-semibold uppercase tracking-[0.24em] text-[#6fb6ff]">PaceLab</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="hidden lg:block">
-                  <h1 className="truncate text-[clamp(1.5rem,2vw,2rem)] font-semibold tracking-[-0.04em] text-white">
-                    {activeLink?.label ?? "Workspace"}
-                  </h1>
-                </div>
+            <div className="flex items-start justify-between gap-4 lg:items-center">
+              <div className="hidden min-w-0 lg:block">
+                <h1 className="truncate text-[clamp(1.5rem,2vw,2rem)] font-semibold tracking-[-0.04em] text-white">
+                  {activeLink?.label ?? "Workspace"}
+                </h1>
               </div>
 
-              <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <div className="min-w-0 lg:hidden">
+                {mobileDetailMode ? (
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-14 rounded-[24px] border border-slate-200/70 bg-white/95 text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:bg-white"
+                      aria-label="Back"
+                      onClick={handleMobileBack}
+                    >
+                      <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
+                    </Button>
+                    <div className="min-w-0 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <span className="size-2 rounded-full bg-[#678c26]" />
+                        <p className="truncate text-[15px] font-medium text-slate-950">{getRoleLabel(role)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className="flex h-auto items-center gap-3 rounded-[24px] px-0 py-0 hover:bg-transparent"
+                        aria-label="Open profile menu"
+                      >
+                        <img
+                          src={getProfileImage(role)}
+                          alt={`${getRoleLabel(role)} profile`}
+                          className="size-14 rounded-[24px] object-cover shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+                        />
+                        <div className="min-w-0 text-left">
+                          <div className="flex items-center gap-1.5">
+                            <span className="size-2 rounded-full bg-[#678c26]" />
+                            <p className="truncate text-[15px] font-medium text-slate-950">{getRoleLabel(role)}</p>
+                          </div>
+                        </div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem>Profile</DropdownMenuItem>
+                      <DropdownMenuItem>Settings</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleSignOut}>Sign out</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
                 <Badge className="hidden rounded-full border-none bg-white/10 px-3 py-1.5 text-white lg:inline-flex">{userEmail}</Badge>
 
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="rounded-full border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.1]"
+                  className="hidden size-9 rounded-full border border-slate-200/90 bg-white/95 text-slate-700 shadow-sm hover:bg-slate-50 lg:inline-flex lg:size-8 lg:border-white/10 lg:bg-white/[0.04] lg:text-white lg:hover:bg-white/[0.1]"
                   aria-label="Toggle theme"
                   onClick={toggleTheme}
                 >
-                  <HugeiconsIcon icon={isDark ? Moon01Icon : Sun01Icon} className="size-4" />
+                  <HugeiconsIcon icon={isDark ? Moon01Icon : Sun01Icon} className="size-3.5" />
                 </Button>
 
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative rounded-full border border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.1]" aria-label="Notifications">
-                      <HugeiconsIcon icon={Notification01Icon} className="size-4" />
-                      <span className="absolute right-2 top-2 size-2 rounded-full bg-[#ff6a55]" />
+                    <Button variant="ghost" size="icon" className="relative size-14 rounded-[24px] border border-slate-200/70 bg-white/95 text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:bg-white lg:size-8 lg:rounded-full lg:border-white/10 lg:bg-white/[0.04] lg:text-white lg:shadow-none lg:hover:bg-white/[0.1]" aria-label="Notifications">
+                      <HugeiconsIcon icon={Notification01Icon} className="size-3.5" />
+                      <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#ff6a55]" />
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="right" showCloseButton={false} className="w-full border-l-slate-200 bg-white sm:max-w-md">
@@ -286,11 +345,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04] p-0 hover:bg-white/[0.1]" aria-label="Open profile menu">
+                    <Button variant="ghost" size="icon" className="hidden size-10 overflow-hidden rounded-full border border-slate-200/80 bg-white/90 p-0 shadow-[0_8px_24px_rgba(15,23,42,0.08)] hover:bg-white lg:inline-flex lg:size-8 lg:border-white/10 lg:bg-white/[0.04] lg:shadow-none lg:hover:bg-white/[0.1]" aria-label="Open profile menu">
                       <img
                         src={getProfileImage(role)}
                         alt={`${getRoleLabel(role)} profile`}
-                        className="size-10 rounded-full object-cover"
+                        className="size-10 rounded-full object-cover lg:size-8"
                       />
                       <span className="sr-only">Profile menu</span>
                     </Button>
@@ -304,22 +363,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-
-          <div className="mt-4 space-y-1 text-white lg:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#6fb6ff]">{getRoleLabel(role)}</p>
-            <h1 className="truncate text-[clamp(1.9rem,7vw,2.5rem)] font-semibold tracking-[-0.05em] text-white">
-              {activeLink?.label ?? "Workspace"}
-            </h1>
-            <p className="text-sm text-white/62">Elite Track Club</p>
-          </div>
         </header>
 
-        <main id="main-content" className="flex-1 overflow-y-auto pb-28 lg:pb-0">
-          <div className="min-h-full rounded-t-[32px] bg-transparent lg:rounded-t-[40px]">{children}</div>
+        <main
+          id="main-content"
+          className={cn("flex-1 overflow-y-auto lg:pb-0", mobileDetailMode ? "pb-6" : "pb-28")}
+        >
+          <div className="min-h-full rounded-t-none bg-transparent lg:rounded-t-[40px]">{children}</div>
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+      <nav className={cn("fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden", mobileDetailMode && "hidden")}>
         <div className="mx-auto max-w-md rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(7,17,34,0.94)_0%,rgba(9,20,39,0.92)_100%)] px-2 py-2 shadow-[0_20px_60px_rgba(5,12,24,0.34)] backdrop-blur-xl">
           <div className="grid grid-cols-5 gap-1">
             {links.map((link) => {

@@ -101,18 +101,18 @@ export default function ClubAdminReportsPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
+      <section className="page-intro">
         <div className="space-y-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Reports & Exports</h1>
-            <p className="text-sm text-slate-500">Export tenant-level user, team, and performance data from one reporting surface.</p>
+            <h1 className="page-intro-title">Reports & Exports</h1>
+            <p className="page-intro-copy">Export tenant-level user, team, and performance data from one reporting surface.</p>
           </div>
           <ClubAdminNav />
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Snapshot</p>
@@ -201,7 +201,7 @@ export default function ClubAdminReportsPage() {
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Export Center</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Output Actions</h2>

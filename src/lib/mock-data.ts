@@ -80,11 +80,64 @@ export interface TrainingPlanSummary {
   assignedAthleteIds?: string[]
 }
 
+export interface AthletePlanDay {
+  id: string
+  dayLabel: string
+  date: string
+  title: string
+  type: "Track" | "Gym" | "Recovery" | "Technical" | "Mixed"
+  focus: string
+  status: "completed" | "scheduled" | "up-next"
+  duration: string
+  location: string
+  coachNote?: string
+  blockPreview: string[]
+}
+
+export interface AthletePlanWeek {
+  weekNumber: number
+  emphasis: string
+  status: "completed" | "current" | "up-next"
+  days: AthletePlanDay[]
+}
+
+export interface AthleteTrainingPlanDetail {
+  planId: string
+  weeks: AthletePlanWeek[]
+}
+
 export interface TrendPoint {
   date: string
   readiness: number
   fatigue: number
   trainingLoad: number
+}
+
+export interface SessionTargetRow {
+  label: string
+  target: string
+  helper?: string
+}
+
+export interface SessionBlock {
+  id: string
+  type: "Strength" | "Run" | "Sprint" | "Jumps" | "Throws"
+  name: string
+  focus: string
+  coachNote: string
+  previousResult?: string
+  rest?: string
+  rows: SessionTargetRow[]
+}
+
+export interface CurrentSession {
+  id: string
+  title: string
+  status: "not-started" | "in-progress" | "completed"
+  scheduledFor: string
+  estimatedDuration: string
+  coachNote: string
+  blocks: SessionBlock[]
 }
 
 export const mockTeams: Team[] = [
@@ -147,13 +200,72 @@ export const mockTestWeekResults: TestWeekResult[] = [
   { athleteId: "a10", athleteName: "Sophia Kim", thirtyM: { value: "4.35s", change: "up" }, flyingThirtyM: { value: "3.18s", change: "up" }, oneHundredFiftyM: { value: "18.1s", change: "same" }, squat1RM: { value: "105kg", change: "up" }, cmj: { value: "52cm", change: "up" } },
 ]
 
-export const mockCurrentSession = {
+export const mockCurrentSession: CurrentSession = {
+  id: "session-2026-03-18-a1",
   title: "Speed Day - Block Starts + Accel",
+  status: "in-progress",
+  scheduledFor: "March 18, 2026",
+  estimatedDuration: "75 min",
+  coachNote: "Stay crisp through the first two blocks and keep lifting volume explosive, not grinding.",
   blocks: [
-    { type: "Sprint", name: "Block Starts 4x30m" },
-    { type: "Sprint", name: "Acceleration 3x60m" },
-    { type: "Strength", name: "Power Cleans 4x3" },
-    { type: "Plyometrics", name: "Bounding 3x40m" },
+    {
+      id: "block-1",
+      type: "Sprint",
+      name: "Block Starts",
+      focus: "Explosive first three steps",
+      coachNote: "Full reset between reps. Quality matters more than chasing times.",
+      previousResult: "Last session: 10m 1.82s, 20m 3.01s, 30m 4.05s",
+      rest: "2-3 min",
+      rows: [
+        { label: "Rep 1", target: "30m from blocks", helper: "Log 10m, 20m, and 30m splits" },
+        { label: "Rep 2", target: "30m from blocks", helper: "Stay low through drive phase" },
+        { label: "Rep 3", target: "30m from blocks", helper: "Max intent, relaxed face" },
+        { label: "Rep 4", target: "30m from blocks", helper: "Cut rep if quality drops" },
+      ],
+    },
+    {
+      id: "block-2",
+      type: "Run",
+      name: "Acceleration Build",
+      focus: "Progressive rise through 60m",
+      coachNote: "Target 95% rhythm with clean mechanics, not strain.",
+      previousResult: "Last session: 3x60m between 7.01s and 7.08s",
+      rest: "5 min",
+      rows: [
+        { label: "Rep 1", target: "60m @ 95%", helper: "Record time and any technical note" },
+        { label: "Rep 2", target: "60m @ 95%", helper: "Stay tall after 30m" },
+        { label: "Rep 3", target: "60m @ 95%", helper: "Preserve posture under fatigue" },
+      ],
+    },
+    {
+      id: "block-3",
+      type: "Strength",
+      name: "Power Cleans",
+      focus: "High force, low grind",
+      coachNote: "Bar speed stays fast. Stop loading up if the catch gets slow.",
+      previousResult: "Best recent working set: 110kg x 3",
+      rest: "2 min",
+      rows: [
+        { label: "Set 1", target: "3 reps @ 95kg" },
+        { label: "Set 2", target: "3 reps @ 100kg" },
+        { label: "Set 3", target: "3 reps @ 105kg" },
+        { label: "Set 4", target: "3 reps @ 105kg" },
+      ],
+    },
+    {
+      id: "block-4",
+      type: "Jumps",
+      name: "Bounds",
+      focus: "Elastic contacts and posture",
+      coachNote: "Keep contacts sharp and rhythm consistent across the full distance.",
+      previousResult: "Last session: 3x40m completed clean with low contact time",
+      rest: "90 sec",
+      rows: [
+        { label: "Set 1", target: "40m continuous bounds", helper: "Add quality note or distance if tracked" },
+        { label: "Set 2", target: "40m continuous bounds", helper: "Stay reactive off the ground" },
+        { label: "Set 3", target: "40m continuous bounds", helper: "Do not force extra length" },
+      ],
+    },
   ],
 }
 
@@ -174,6 +286,280 @@ export const mockTrainingPlans: TrainingPlanSummary[] = [
     weeks: 2,
     assignedTo: "athlete",
     assignedAthleteIds: ["a6", "a7"],
+  },
+]
+
+export const mockAthleteTrainingPlanDetails: AthleteTrainingPlanDetail[] = [
+  {
+    planId: "plan-1",
+    weeks: [
+      {
+        weekNumber: 1,
+        emphasis: "Acceleration entry + weight room reintroduction",
+        status: "completed",
+        days: [
+          {
+            id: "plan-1-w1-mon",
+            dayLabel: "Mon",
+            date: "2026-03-02",
+            title: "Acceleration + Lower Strength",
+            type: "Mixed",
+            focus: "First-step mechanics and squat intent",
+            status: "completed",
+            duration: "80 min",
+            location: "Track / Weight Room",
+            coachNote: "Keep intensity moderate and rhythm sharp.",
+            blockPreview: ["Starts 4x20m", "Sled accel 4x15m", "Back squat 4x4"],
+          },
+          {
+            id: "plan-1-w1-tue",
+            dayLabel: "Tue",
+            date: "2026-03-03",
+            title: "Tempo + Mobility",
+            type: "Recovery",
+            focus: "Restore tissue quality and aerobic support",
+            status: "completed",
+            duration: "55 min",
+            location: "Track",
+            blockPreview: ["6x200m tempo", "Mobility circuit", "Core reset"],
+          },
+          {
+            id: "plan-1-w1-wed",
+            dayLabel: "Wed",
+            date: "2026-03-04",
+            title: "Max Velocity + Cleans",
+            type: "Mixed",
+            focus: "Upright mechanics and bar speed",
+            status: "completed",
+            duration: "75 min",
+            location: "Track / Weight Room",
+            blockPreview: ["Flying 30m", "Wickets", "Power cleans 5x2"],
+          },
+          {
+            id: "plan-1-w1-thu",
+            dayLabel: "Thu",
+            date: "2026-03-05",
+            title: "Recovery Flush",
+            type: "Recovery",
+            focus: "Unload and restore",
+            status: "completed",
+            duration: "40 min",
+            location: "Recovery Room",
+            blockPreview: ["Bike flush", "Mobility", "Soft tissue"],
+          },
+          {
+            id: "plan-1-w1-fri",
+            dayLabel: "Fri",
+            date: "2026-03-06",
+            title: "Speed Endurance + Upper Strength",
+            type: "Mixed",
+            focus: "Maintain mechanics under fatigue",
+            status: "completed",
+            duration: "85 min",
+            location: "Track / Weight Room",
+            blockPreview: ["3x120m", "Bench press 4x4", "Med ball throws"],
+          },
+        ],
+      },
+      {
+        weekNumber: 2,
+        emphasis: "Acceleration and power consolidation",
+        status: "current",
+        days: [
+          {
+            id: "plan-1-w2-mon",
+            dayLabel: "Mon",
+            date: "2026-03-09",
+            title: "Speed Day - Block Starts + Accel",
+            type: "Track",
+            focus: "Explosive drive phase and clean technical rhythm",
+            status: "completed",
+            duration: "75 min",
+            location: "Track",
+            coachNote: "Treat the first block as quality work, not a conditioning set.",
+            blockPreview: ["Block starts 4x30m", "Acceleration 3x60m", "Bounding 3x40m"],
+          },
+          {
+            id: "plan-1-w2-tue",
+            dayLabel: "Tue",
+            date: "2026-03-10",
+            title: "Lift + Core",
+            type: "Gym",
+            focus: "Explosive triple extension",
+            status: "completed",
+            duration: "60 min",
+            location: "Weight Room",
+            blockPreview: ["Power cleans 4x3", "RDL 3x6", "Core circuit"],
+          },
+          {
+            id: "plan-1-w2-wed",
+            dayLabel: "Wed",
+            date: "2026-03-11",
+            title: "Tempo / Regeneration",
+            type: "Recovery",
+            focus: "Restore between intensity days",
+            status: "completed",
+            duration: "45 min",
+            location: "Track",
+            blockPreview: ["6x100m tempo", "Mobility", "Breathing reset"],
+          },
+          {
+            id: "plan-1-w2-thu",
+            dayLabel: "Thu",
+            date: "2026-03-12",
+            title: "Power + Technical Contacts",
+            type: "Technical",
+            focus: "Elastic qualities and ground contacts",
+            status: "scheduled",
+            duration: "70 min",
+            location: "Track",
+            coachNote: "Stay springy. Stop if contacts get heavy.",
+            blockPreview: ["Wickets", "Bounds", "Short hill accelerations"],
+          },
+          {
+            id: "plan-1-w2-fri",
+            dayLabel: "Fri",
+            date: "2026-03-13",
+            title: "Speed Endurance",
+            type: "Track",
+            focus: "Maintain posture through longer reps",
+            status: "up-next",
+            duration: "80 min",
+            location: "Track",
+            blockPreview: ["3x150m", "2x80m float-fast", "Cooldown strides"],
+          },
+          {
+            id: "plan-1-w2-sat",
+            dayLabel: "Sat",
+            date: "2026-03-14",
+            title: "Lift - Lower Power",
+            type: "Gym",
+            focus: "High output without grind",
+            status: "up-next",
+            duration: "55 min",
+            location: "Weight Room",
+            blockPreview: ["Hang clean 4x2", "Split squat 3x5", "Jumps 3x3"],
+          },
+        ],
+      },
+      {
+        weekNumber: 3,
+        emphasis: "Speed endurance and lifting density",
+        status: "up-next",
+        days: [
+          {
+            id: "plan-1-w3-mon",
+            dayLabel: "Mon",
+            date: "2026-03-16",
+            title: "Acceleration + Cleans",
+            type: "Mixed",
+            focus: "Power off the ground",
+            status: "up-next",
+            duration: "75 min",
+            location: "Track / Weight Room",
+            blockPreview: ["2x3x20m", "Cleans", "Pogo series"],
+          },
+          {
+            id: "plan-1-w3-tue",
+            dayLabel: "Tue",
+            date: "2026-03-17",
+            title: "Recovery / Tissue",
+            type: "Recovery",
+            focus: "Unload",
+            status: "up-next",
+            duration: "40 min",
+            location: "Recovery Room",
+            blockPreview: ["Flush bike", "Mobility", "Soft tissue"],
+          },
+          {
+            id: "plan-1-w3-wed",
+            dayLabel: "Wed",
+            date: "2026-03-18",
+            title: "Speed Endurance Main Set",
+            type: "Track",
+            focus: "Hold mechanics at high velocity",
+            status: "up-next",
+            duration: "85 min",
+            location: "Track",
+            blockPreview: ["4x120m", "2x60m", "Cooldown"],
+          },
+        ],
+      },
+      {
+        weekNumber: 4,
+        emphasis: "Sharpen + test week lead-in",
+        status: "up-next",
+        days: [
+          {
+            id: "plan-1-w4-mon",
+            dayLabel: "Mon",
+            date: "2026-03-23",
+            title: "Pre-test speed touch",
+            type: "Track",
+            focus: "Stay fresh",
+            status: "up-next",
+            duration: "55 min",
+            location: "Track",
+            blockPreview: ["Starts", "Wickets", "Low volume sprint"],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    planId: "plan-2",
+    weeks: [
+      {
+        weekNumber: 1,
+        emphasis: "Approach rhythm and jump power",
+        status: "current",
+        days: [
+          {
+            id: "plan-2-w1-mon",
+            dayLabel: "Mon",
+            date: "2026-03-09",
+            title: "Approach Build",
+            type: "Technical",
+            focus: "Approach consistency",
+            status: "completed",
+            duration: "70 min",
+            location: "Runway",
+            blockPreview: ["Approach checks", "6 approach runs", "Short jump pop-offs"],
+          },
+          {
+            id: "plan-2-w1-wed",
+            dayLabel: "Wed",
+            date: "2026-03-11",
+            title: "Jump Power",
+            type: "Mixed",
+            focus: "Elastic force and takeoff feel",
+            status: "scheduled",
+            duration: "75 min",
+            location: "Runway / Weight Room",
+            blockPreview: ["Bounds", "Full jumps", "Trap bar jumps"],
+          },
+        ],
+      },
+      {
+        weekNumber: 2,
+        emphasis: "Competition rhythm",
+        status: "up-next",
+        days: [
+          {
+            id: "plan-2-w2-mon",
+            dayLabel: "Mon",
+            date: "2026-03-16",
+            title: "Approach and pop-up",
+            type: "Technical",
+            focus: "Consistency under meet rhythm",
+            status: "up-next",
+            duration: "60 min",
+            location: "Runway",
+            blockPreview: ["Approach marks", "4 pop-ups", "Landing drills"],
+          },
+        ],
+      },
+    ],
   },
 ]
 

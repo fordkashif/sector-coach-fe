@@ -1,26 +1,49 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useMemo, useState, type FormEvent } from "react"
+import { Link } from "react-router-dom"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowRight01Icon, CheckmarkCircle02Icon, StarAward02Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { tenantStorageKey } from "@/lib/tenant-storage"
-import { mockAthletes, mockPRs, mockTestDefinitions, onSubmitTestWeek } from "@/lib/mock-data"
+import { mockAthletes, mockPRs, mockTestDefinitions, mockTestWeekResults, onSubmitTestWeek } from "@/lib/mock-data"
 
 type TestSubmission = Record<string, string>
+
 const PR_OVERRIDE_STORAGE_KEY = "pacelab:pr-overrides"
+const TEST_WEEK_STORAGE_KEY = "pacelab:test-week-submission"
 
 export default function AthleteTestWeekPage() {
   const athlete = mockAthletes[0]
   const [values, setValues] = useState<TestSubmission>(Object.fromEntries(mockTestDefinitions.map((test) => [test, ""])))
   const [prUpdates, setPrUpdates] = useState<string[]>([])
+  const [submittedAt, setSubmittedAt] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null
+    return window.localStorage.getItem(tenantStorageKey(TEST_WEEK_STORAGE_KEY))
+  })
+
+  const athletePrs = mockPRs.filter((pr) => pr.athleteId === athlete.id)
+  const lastBenchmarks = mockTestWeekResults.find((row) => row.athleteId === athlete.id)
+  const completionCount = mockTestDefinitions.filter((test) => values[test].trim()).length
+
+  const benchmarkCards = useMemo(
+    () => [
+      { label: "30m", value: lastBenchmarks?.thirtyM?.value ?? "-" },
+      { label: "Flying 30m", value: lastBenchmarks?.flyingThirtyM?.value ?? "-" },
+      { label: "150m", value: lastBenchmarks?.oneHundredFiftyM?.value ?? "-" },
+      { label: "Squat 1RM", value: lastBenchmarks?.squat1RM?.value ?? "-" },
+      { label: "CMJ", value: lastBenchmarks?.cmj?.value ?? "-" },
+    ],
+    [lastBenchmarks],
+  )
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     onSubmitTestWeek()
 
     const updates: string[] = []
-    const athletePrs = mockPRs.filter((pr) => pr.athleteId === athlete.id)
 
     athletePrs.forEach((pr) => {
       const next = values[pr.event]
@@ -44,29 +67,45 @@ export default function AthleteTestWeekPage() {
     })
     window.localStorage.setItem(key, JSON.stringify(nextOverrides))
 
+    const submissionStamp = new Date().toLocaleString()
+    window.localStorage.setItem(tenantStorageKey(TEST_WEEK_STORAGE_KEY), submissionStamp)
+    setSubmittedAt(submissionStamp)
     setPrUpdates(updates)
   }
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Test Week</h1>
-          <p className="text-sm text-slate-500">Submit current benchmark results so your coach can review progress and update records.</p>
+      <section className="mobile-hero-surface">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mobile-pill-accent">Testing</span>
+            <span className="mobile-pill-muted">{mockTestDefinitions.length} benchmarks</span>
+          </div>
+          <h1 className="mobile-hero-title">Test Week</h1>
+          <p className="mobile-hero-copy">
+            Submit benchmark results, review likely PR movement, and hand the testing block back to your coach for review.
+          </p>
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
-          <div className="space-y-1 border-b border-slate-200 pb-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Submission</p>
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Enter Results</h2>
+        <div className="mobile-card-primary">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-4">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Submission</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Enter Results</h2>
+              <p className="text-sm text-slate-500">Fill the active battery and submit once the block is complete.</p>
+            </div>
+            <div className="mobile-card-utility text-center">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Completion</p>
+              <p className="mt-1 text-2xl font-semibold tracking-[-0.05em] text-slate-950">{completionCount}/{mockTestDefinitions.length}</p>
+            </div>
           </div>
 
           <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
               {mockTestDefinitions.map((test) => (
-                <div key={test} className="space-y-2 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <div key={test} className="mobile-card-utility space-y-2">
                   <Label htmlFor={test} className="text-sm font-medium text-slate-950">{test}</Label>
                   <Input
                     id={test}
@@ -83,46 +122,98 @@ export default function AthleteTestWeekPage() {
                 </div>
               ))}
             </div>
-            <Button type="submit" className="h-12 w-full rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95">
+            <Button type="submit" className="mobile-action-primary h-12 w-full">
               Submit results
             </Button>
           </form>
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
-            <div className="space-y-1 border-b border-slate-200 pb-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Assessment Mix</p>
-              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Current Battery</h2>
+          <div className="mobile-card-primary">
+            <div className="mobile-surface-heading">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Last Benchmarks</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Previous Testing</h2>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              {mockTestDefinitions.map((test, index) => (
-                <div key={test} className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Test {index + 1}</p>
-                  <p className="mt-1.5 text-sm font-medium text-slate-950">{test}</p>
+              {benchmarkCards.map((item) => (
+                <div key={item.label} className="mobile-stat-card">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>
+                  <p className="mt-1.5 text-lg font-semibold tracking-[-0.03em] text-slate-950">{item.value}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
-            <div className="space-y-1 border-b border-slate-200 pb-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Auto PR Updates</p>
-              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Detected Changes</h2>
+          <div className="mobile-card-primary">
+            <div className="mobile-surface-heading">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Coach Review</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Submission State</h2>
             </div>
             <div className="mt-4 space-y-3">
-              {prUpdates.length === 0 ? (
-                <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
-                  <p className="text-sm text-slate-500">Submit results to detect PR movement automatically.</p>
+              {submittedAt ? (
+                <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+                    <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4" />
+                    Results submitted
+                  </div>
+                  <p className="mt-2 text-sm text-emerald-700/80">Submitted {submittedAt}. Your coach can now review the testing block and compare any PR movement.</p>
                 </div>
               ) : (
-                prUpdates.map((update) => (
-                  <div key={update} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm font-medium text-slate-950">
-                    {update}
-                  </div>
-                ))
+                <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                  <p className="text-sm text-slate-500">Submit the active battery to move this test week into coach review.</p>
+                </div>
               )}
+
+              <Button asChild variant="outline" className="mobile-action-secondary w-full">
+                <Link to="/athlete/trends">
+                  Open progress
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+                </Link>
+              </Button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="mobile-card-primary">
+          <div className="mobile-surface-heading">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">PR Detection</p>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Likely Record Changes</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {prUpdates.length === 0 ? (
+              <div className="rounded-[20px] border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                <p className="text-sm text-slate-500">Submit results to detect PR movement automatically.</p>
+              </div>
+            ) : (
+              prUpdates.map((update) => (
+                <div key={update} className="mobile-card-utility text-sm font-medium text-slate-950">
+                  {update}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="mobile-card-primary">
+          <div className="mobile-surface-heading">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Workflow</p>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Related Actions</h2>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {[
+              { label: "Back to progress", href: "/athlete/trends", icon: ArrowRight01Icon },
+              { label: "View PRs", href: "/athlete/prs", icon: StarAward02Icon },
+              { label: "Open today", href: "/athlete/home", icon: ArrowRight01Icon },
+            ].map((item) => (
+              <Button key={item.href} asChild variant="outline" className="mobile-action-secondary">
+                <Link to={item.href}>
+                  {item.label}
+                  <HugeiconsIcon icon={item.icon} className="size-4" />
+                </Link>
+              </Button>
+            ))}
           </div>
         </div>
       </section>

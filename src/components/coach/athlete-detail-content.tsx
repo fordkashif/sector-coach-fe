@@ -2,7 +2,7 @@
 
 import { FilterHorizontalIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { BarChart, LineChart } from "@mui/x-charts"
 import { ReadinessBadge } from "@/components/badges"
 import { Badge } from "@/components/ui/badge"
@@ -57,6 +57,15 @@ export function CoachAthleteDetailContent({ athlete }: { athlete: Athlete }) {
   const [logType, setLogType] = useState<LogTypeFilter>("All")
   const [dateRange, setDateRange] = useState("Last 7 days")
 
+  useEffect(() => {
+    ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = true
+    window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: true } }))
+    return () => {
+      ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = false
+      window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: false } }))
+    }
+  }, [])
+
   const athletePrs = mockPRs.filter((pr) => pr.athleteId === athlete.id)
   const topPrs = athletePrs.slice(0, 4)
   const athleteLogs = mockLogs.filter((log) => log.athleteId === athlete.id)
@@ -90,99 +99,82 @@ export function CoachAthleteDetailContent({ athlete }: { athlete: Athlete }) {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
-      <header className="rounded-[28px] border border-[#d7e5f8] bg-[linear-gradient(135deg,#ffffff_0%,#f4f8fc_52%,#eef5ff_100%)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:p-5">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
-          <div className="space-y-4">
-            <div className="flex items-start gap-4">
-              <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-lg font-semibold text-white shadow-[0_14px_30px_rgba(31,140,255,0.24)]">
-                {athlete.name
-                  .split(" ")
-                  .map((part) => part[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase()}
-              </div>
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="rounded-full bg-[#eef5ff] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1f5fd1] hover:bg-[#eef5ff]">
-                    {ageGroupFor(athlete.age)}
-                  </Badge>
-                  <Badge variant="outline" className="rounded-full border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                    {athlete.primaryEvent}
-                  </Badge>
-                  <Badge variant="outline" className="rounded-full border-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                    {athlete.adherence}% adherence
-                  </Badge>
-                </div>
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl">{athlete.name}</h1>
-                  <p className="mt-2 max-w-2xl text-sm text-slate-500">
-                    Coach-facing athlete detail for readiness, recent work, test movement, and performance progression.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <ReadinessBadge status={athlete.readiness} />
-                  <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
-                    Last wellness {athlete.lastWellness}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {overviewMetrics.map((item) => (
-                <div key={item.label} className="rounded-[18px] border border-slate-200 bg-white/80 px-4 py-3 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</p>
-                  <p className="mt-1.5 text-lg font-semibold tracking-[-0.04em] text-slate-950">{item.value}</p>
-                </div>
-              ))}
+      <header className="space-y-4 pt-1">
+        <div className="flex items-start gap-4">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-lg font-semibold text-white shadow-[0_14px_30px_rgba(31,140,255,0.24)]">
+            {athlete.name
+              .split(" ")
+              .map((part) => part[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">
+              {athlete.name}
+            </h1>
+            <p className="max-w-xl text-[0.95rem] leading-6 text-slate-600">
+              Coach-facing athlete detail for readiness, recent work, testing movement, and performance progression.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <ReadinessBadge status={athlete.readiness} />
+              <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                {athlete.primaryEvent}
+              </span>
+              <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+                {ageGroupFor(athlete.age)}
+              </span>
             </div>
           </div>
+        </div>
 
-          <div className="rounded-[22px] border border-[#d7e5f8] bg-[linear-gradient(180deg,#fbfdff_0%,#eef5ff_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)]">
+          <div className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
             <div className="space-y-1 border-b border-slate-200 pb-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Current Focus</p>
-              <h2 className="text-lg font-semibold tracking-[-0.03em] text-slate-950">Signal Summary</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Current signal</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Coach Summary</h2>
             </div>
-            <div className="mt-4 rounded-[18px] border border-[#d7e5f8] bg-white px-4 py-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Plan Adherence</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-slate-950">{athlete.adherence}%</p>
-                </div>
-                <div
-                  className="relative size-16 shrink-0 rounded-full"
-                  style={{
-                    background: `conic-gradient(from 180deg, #1f8cff 0deg, #4759ff ${athlete.adherence * 3.6}deg, #e2e8f0 ${athlete.adherence * 3.6}deg, #e2e8f0 360deg)`,
-                  }}
-                >
-                  <div className="absolute inset-[7px] rounded-full bg-white" />
-                  <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-600">
-                    {athlete.adherence}%
-                  </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[20px] border border-slate-200 bg-[#fbfcfe] p-4">
+                <p className="text-sm text-slate-500">Plan adherence</p>
+                <p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-slate-950">{athlete.adherence}%</p>
+                <div className="mt-3 h-2 rounded-full bg-slate-200">
+                  <div
+                    className="h-2 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)]"
+                    style={{ width: `${athlete.adherence}%` }}
+                  />
                 </div>
               </div>
-              <div className="mt-3 h-2 rounded-full bg-slate-200">
-                <div
-                  className="h-2 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)]"
-                  style={{ width: `${athlete.adherence}%` }}
-                />
+              <div className="rounded-[20px] border border-slate-200 bg-[#fbfcfe] p-4">
+                <p className="text-sm text-slate-500">Testing status</p>
+                <p className="mt-1 text-xl font-semibold tracking-[-0.04em] text-slate-950">
+                  {testWeek ? "Latest results loaded" : "No current test week"}
+                </p>
+                <p className="mt-2 text-sm text-slate-500">
+                  {testWeek ? `30m ${testWeek.thirtyM?.value ?? "-"} | CMJ ${testWeek.cmj?.value ?? "-"}` : "No recent benchmark data available."}
+                </p>
               </div>
-            </div>
-
-            <div className="mt-3 space-y-2.5">
-              <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Log mix</p>
-                <p className="mt-1 text-lg font-semibold tracking-[-0.03em] text-slate-950">{totalLogs} recent entries</p>
-                <p className="mt-1 text-sm text-slate-500">{logMixRows[0] ? `${logMixRows[0].type} is the dominant recent work type.` : "No recent work logged."}</p>
+              <div className="rounded-[20px] border border-slate-200 bg-[#fbfcfe] p-4">
+                <p className="text-sm text-slate-500">Last wellness</p>
+                <p className="mt-1 text-xl font-semibold tracking-[-0.04em] text-slate-950">{athlete.lastWellness}</p>
               </div>
-              <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Testing</p>
-                <p className="mt-1 text-lg font-semibold tracking-[-0.03em] text-slate-950">{testWeek ? "Latest results loaded" : "No current test week"}</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  {testWeek ? `30m ${testWeek.thirtyM?.value ?? "-"} | CMJ ${testWeek.cmj?.value ?? "-"}` : "This athlete does not have test-week data yet."}
+              <div className="rounded-[20px] border border-slate-200 bg-[#fbfcfe] p-4">
+                <p className="text-sm text-slate-500">Recent work mix</p>
+                <p className="mt-1 text-xl font-semibold tracking-[-0.04em] text-slate-950">{totalLogs} entries</p>
+                <p className="mt-2 text-sm text-slate-500">
+                  {logMixRows[0] ? `${logMixRows[0].type} is the dominant recent work type.` : "No recent work logged."}
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            {overviewMetrics.map((item) => (
+              <div key={item.label} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{item.label}</p>
+                <p className="mt-2 text-lg font-semibold tracking-[-0.04em] text-slate-950">{item.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       </header>
@@ -296,7 +288,7 @@ export function CoachAthleteDetailContent({ athlete }: { athlete: Athlete }) {
         </TabsContent>
 
         <TabsContent value="logs" className="space-y-4">
-          <section className="space-y-4">
+          <section className="space-y-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-slate-950">Logs</h2>
@@ -396,7 +388,7 @@ export function CoachAthleteDetailContent({ athlete }: { athlete: Athlete }) {
         </TabsContent>
 
         <TabsContent value="test-weeks">
-          <section className="space-y-3">
+          <section className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
             <div>
               <h2 className="text-base font-semibold text-slate-950">Test Weeks</h2>
               <p className="text-sm text-slate-500">Current week compared with previous trend arrows.</p>
@@ -466,7 +458,7 @@ export function CoachAthleteDetailContent({ athlete }: { athlete: Athlete }) {
         </TabsContent>
 
         <TabsContent value="prs">
-          <section className="space-y-3">
+          <section className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
             <div>
               <h2 className="text-base font-semibold text-slate-950">PRs</h2>
               <p className="text-sm text-slate-500">Personal records by event.</p>
@@ -512,7 +504,7 @@ export function CoachAthleteDetailContent({ athlete }: { athlete: Athlete }) {
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-4">
-          <section className="space-y-3">
+          <section className="space-y-3 rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
             <div>
               <h2 className="text-base font-semibold text-slate-950">Progress Trends</h2>
               <p className="text-sm text-slate-500">Readiness, fatigue, and load trend lines.</p>

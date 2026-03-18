@@ -60,15 +60,15 @@ export default function AthleteWellnessPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
+      <section className="page-intro">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Wellness</h1>
-          <p className="text-sm text-slate-500">Quick daily check-in to score how ready you are to train today.</p>
+          <h1 className="page-intro-title">Wellness</h1>
+          <p className="page-intro-copy">Quick daily check-in to score how ready you are to train today.</p>
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Daily Input</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Check-In Form</h2>
@@ -127,7 +127,7 @@ export default function AthleteWellnessPage() {
         </div>
 
         <div className="space-y-5">
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+          <div className="mobile-card-primary">
             <div className="space-y-1 border-b border-slate-200 pb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Recovery Guide</p>
               <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">How This Scores</h2>
@@ -149,7 +149,7 @@ export default function AthleteWellnessPage() {
             </div>
           </div>
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+          <div className="mobile-card-primary">
             <div className="space-y-1 border-b border-slate-200 pb-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Result</p>
               <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Readiness Output</h2>

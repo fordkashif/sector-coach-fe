@@ -2,7 +2,7 @@
 
 import { Add01Icon, ArrowLeft01Icon, ArrowRight01Icon, Delete01Icon, MoreHorizontalIcon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { EventGroupBadge } from "@/components/badges"
 import {
   AlertDialog,
@@ -589,6 +589,7 @@ export default function CoachTrainingPlanPageClient({
   const [activeWeek, setActiveWeek] = useState(1)
   const [weekViewMode, setWeekViewMode] = useState<WeekViewMode>("calendar")
   const [editingDayId, setEditingDayId] = useState<string | null>(null)
+  const sessionEditorRef = useRef<HTMLElement | null>(null)
   const [showSessionDetails, setShowSessionDetails] = useState(false)
   const [previewPlanId, setPreviewPlanId] = useState<string | null>(null)
   const [previewWeek, setPreviewWeek] = useState(1)
@@ -1080,21 +1081,57 @@ export default function CoachTrainingPlanPageClient({
     setShowSessionDetails(false)
   }, [editingDayId])
 
+  useEffect(() => {
+    if (!editingDayId || typeof window === "undefined" || window.innerWidth >= 1024) return
+
+    requestAnimationFrame(() => {
+      sessionEditorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    })
+  }, [editingDayId])
+
+  useEffect(() => {
+    ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = view !== "list"
+    window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: view !== "list" } }))
+    return () => {
+      ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = false
+      window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: false } }))
+    }
+  }, [view])
+
+  useEffect(() => {
+    const handleMobileDetailBack = () => {
+      if (view !== "wizard") return
+      if (editingDayId) {
+        setEditingDayId(null)
+        return
+      }
+      setView("list")
+    }
+
+    window.addEventListener("pacelab:mobile-detail-back", handleMobileDetailBack)
+    return () => {
+      window.removeEventListener("pacelab:mobile-detail-back", handleMobileDetailBack)
+    }
+  }, [editingDayId, view])
+
   if (view === "list") {
     return (
       <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
-        <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
+        <section className="space-y-4 pt-1">
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Training Plans</h1>
-              <p className="text-sm text-slate-500">Browse plans and create a new one.</p>
+            <div className="space-y-2">
+              <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">Training Plans</h1>
+              <p className="max-w-xl text-[0.95rem] leading-6 text-slate-600">
+                Browse plans and create a new one.
+                {effectiveTeam ? ` Viewing ${effectiveTeam.name}.` : ""}
+              </p>
             </div>
             <Button
               type="button"
               size="icon"
               aria-label="Create training plan"
               onClick={openWizard}
-              className="rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_14px_34px_rgba(31,140,255,0.32),0_0_28px_rgba(71,89,255,0.18)] hover:opacity-95"
+              className="mt-0.5 flex size-14 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_14px_34px_rgba(31,140,255,0.32),0_0_28px_rgba(71,89,255,0.18)] hover:opacity-95"
             >
               <HugeiconsIcon icon={Add01Icon} className="size-5" />
             </Button>
@@ -1392,34 +1429,14 @@ export default function CoachTrainingPlanPageClient({
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-      <header className="rounded-[28px] border border-[#d7e5f8] bg-[linear-gradient(135deg,#ffffff_0%,#f4f8fc_58%,#eef5ff_100%)] p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:p-5">
-        <div className="flex items-start gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="mt-0.5 rounded-full border-slate-200 bg-white text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
-            aria-label="Back to plans"
-            onClick={() => setView("list")}
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-          </Button>
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex rounded-full bg-[#eef5ff] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1f5fd1]">
-                Plan Builder
-              </span>
-              <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-                {effectiveTeam?.name ?? "Assigned team"}
-              </span>
-            </div>
-            <h1 className="text-3xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-4xl">Create Training Plan</h1>
-            <p className="max-w-2xl text-sm text-slate-500">
-              Set up the plan, shape the week structure, then review before publishing.
-              {scopedTeamId ? ` Scoped to ${effectiveTeam?.name ?? scopedTeamId}.` : ""}
-            </p>
-          </div>
-        </div>
+      <header className="space-y-2 pt-1">
+        <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">
+          Create Training Plan
+        </h1>
+        <p className="max-w-xl text-[0.95rem] leading-6 text-slate-600">
+          Set up the plan, shape the week structure, then review before publishing.
+          {scopedTeamId ? ` Scoped to ${effectiveTeam?.name ?? scopedTeamId}.` : ""}
+        </p>
       </header>
 
       <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)]">
@@ -2092,9 +2109,14 @@ export default function CoachTrainingPlanPageClient({
             ))}
           </div>
 
-          <div className="sticky bottom-4 lg:hidden">
-            <div className="rounded-xl border bg-background/95 p-3 backdrop-blur">
-              <Button type="button" className="w-full" disabled={!canPublish} onClick={openReview}>
+          <div className="sticky bottom-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden">
+            <div className="rounded-xl border bg-background/95 p-2 backdrop-blur">
+              <Button
+                type="button"
+                className="h-11 w-full rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
+                disabled={!canPublish}
+                onClick={openReview}
+              >
                 Continue to Review
               </Button>
               {!canPublish ? (
@@ -2108,7 +2130,7 @@ export default function CoachTrainingPlanPageClient({
       ) : null}
 
       {step === 2 && editingDay ? (
-        <section className="space-y-4 rounded-2xl border bg-card p-4">
+        <section ref={sessionEditorRef} className="space-y-4 rounded-2xl border bg-card p-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Session Editor</h2>

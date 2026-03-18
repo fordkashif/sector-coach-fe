@@ -42,18 +42,18 @@ export default function ClubAdminUsersPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="-mx-4 px-4 py-4 sm:-mx-6 sm:px-6 sm:py-5">
+      <section className="page-intro">
         <div className="space-y-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Users & Roles</h1>
-            <p className="text-sm text-slate-500">Create users, review club admin requests, send coach invites, and control access.</p>
+            <h1 className="page-intro-title">Users & Roles</h1>
+            <p className="page-intro-copy">Create users, review club admin requests, send coach invites, and control access.</p>
           </div>
           <ClubAdminNav />
         </div>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Create User</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Manual Provisioning</h2>
@@ -108,7 +108,7 @@ export default function ClubAdminUsersPage() {
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Coach Invites</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Send Invite</h2>
@@ -179,7 +179,7 @@ export default function ClubAdminUsersPage() {
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Club Admin Requests</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Approval Queue</h2>
@@ -249,7 +249,7 @@ export default function ClubAdminUsersPage() {
           </div>
         </div>
 
-        <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px] sm:p-5">
+        <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">User Directory</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Access Control</h2>
@@ -288,7 +288,7 @@ export default function ClubAdminUsersPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="h-11 rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
+                      className="mobile-action-secondary"
                       onClick={() => {
                         const next = users.map((item) =>
                           item.id === user.id ? { ...item, status: (item.status === "active" ? "disabled" : "active") as ClubUser["status"] } : item,

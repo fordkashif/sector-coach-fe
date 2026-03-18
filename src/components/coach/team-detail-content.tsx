@@ -338,7 +338,12 @@ export function CoachTeamDetailContent({ teamId }: { teamId: string }) {
                     <div className="space-y-2">
                       <Label htmlFor="detail-invite-link">Invite link</Label>
                       <div className="flex items-center gap-2">
-                        <Input id="detail-invite-link" value={generatedInviteLink ?? inviteLink} readOnly />
+                        <Input
+                          id="detail-invite-link"
+                          value={generatedInviteLink ?? inviteLink}
+                          readOnly
+                          className="text-slate-950 selection:bg-[#dbeafe] selection:text-slate-950"
+                        />
                         <Button
                           type="button"
                           size="icon"
@@ -373,6 +378,7 @@ export function CoachTeamDetailContent({ teamId }: { teamId: string }) {
                   <DialogFooter>
                     <Button
                       type="button"
+                      className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                       onClick={() => {
                         onGenerateInvite()
                         setGeneratedInviteLink(`${inviteLink}?token=${Date.now().toString(36)}`)
