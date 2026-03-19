@@ -45,6 +45,20 @@ export default function AthleteProfilePage() {
   const [preferences, setPreferences] = useState<AthletePreferences>(() => loadPreferences())
 
   useEffect(() => {
+    if (typeof window === "undefined") return
+    ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = true
+    window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: true } }))
+    const handleBack = () => window.history.back()
+    window.addEventListener("pacelab:mobile-detail-back", handleBack)
+
+    return () => {
+      ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = false
+      window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: false } }))
+      window.removeEventListener("pacelab:mobile-detail-back", handleBack)
+    }
+  }, [])
+
+  useEffect(() => {
     window.localStorage.setItem(
       tenantStorageKey(PROFILE_PREFERENCES_STORAGE_KEY),
       JSON.stringify(preferences),
@@ -53,21 +67,21 @@ export default function AthleteProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="mobile-hero-surface">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mobile-pill-accent">
-              Athlete
-            </span>
-            <span className="mobile-pill-muted">
-              {team?.name ?? "Unassigned"}
-            </span>
-          </div>
-          <h1 className="mobile-hero-title">Profile</h1>
-          <p className="mobile-hero-copy">
-            Keep identity, reminders, and training preferences lightweight so the athlete side stays focused on execution.
-          </p>
+      <section className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-medium text-slate-700">
+            {team?.name ?? "Unassigned"}
+          </span>
+          <span className="inline-flex rounded-full bg-[#f8fafc] px-3 py-1 text-xs font-medium text-slate-700">
+            {getTeamDisciplineLabel(team) || athlete.eventGroup}
+          </span>
         </div>
+        <h1 className="text-[2.15rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.5rem]">
+          Profile
+        </h1>
+        <p className="text-base leading-7 text-slate-600">
+          Keep identity, reminders, and training preferences lightweight so the athlete side stays focused on execution.
+        </p>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">

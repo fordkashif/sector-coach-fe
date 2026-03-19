@@ -4,9 +4,12 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowLeft01Icon,
   AssignmentsIcon,
+  Fire03Icon,
   Home01Icon,
+  Menu01Icon,
   Moon01Icon,
   Notification01Icon,
+  PlayIcon,
   PieChartSquareIcon,
   StarAward02Icon,
   Sun01Icon,
@@ -21,6 +24,7 @@ import { useEffect, useMemo, useState } from "react"
 import type React from "react"
 import { useTheme } from "next-themes"
 import { getCoachScope } from "@/lib/coach-scope"
+import { mockAthletes, mockTeams } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { useRole } from "@/lib/role-context"
 import { clearSessionCookies } from "@/lib/auth-session"
@@ -75,7 +79,7 @@ function getRoleLabel(role: string) {
 
 function getProfileImage(role: string) {
   if (role === "coach") return "/coach-avatar.png"
-  if (role === "athlete") return "/avatar-placeholder.svg"
+  if (role === "athlete") return "/coach-avatar.png"
   return "/avatar-placeholder.svg"
 }
 
@@ -85,6 +89,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
   const [mobileDetailMode, setMobileDetailMode] = useState(false)
+  const useAthleteHomeActionNav = pathname.startsWith("/athlete/home")
+  const hideMobileNav = mobileDetailMode
   const useSectionBoundTopTone =
     pathname.startsWith("/coach/dashboard") ||
     pathname.startsWith("/coach/teams") ||
@@ -116,6 +122,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const activeLink = links.find((link) => pathname.startsWith(link.href)) ?? links[0]
   const isDark = resolvedTheme === "dark"
   const toggleTheme = () => setTheme(isDark ? "light" : "dark")
+  const useAthleteDrawerMenu = role === "athlete"
+  const athleteProfile = role === "athlete" ? mockAthletes[0] : null
+  const athleteTeam = athleteProfile ? mockTeams.find((team) => team.id === athleteProfile.teamId) : null
   const userEmail = typeof window === "undefined" ? "clubadmin@pacelab.local" : window.localStorage.getItem(MOCK_USER_EMAIL_STORAGE_KEY) ?? "clubadmin@pacelab.local"
   useEffect(() => {
     const scroller = document.getElementById("main-content")
@@ -268,12 +277,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
                     </Button>
                     <div className="min-w-0 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <span className="size-2 rounded-full bg-[#678c26]" />
-                        <p className="truncate text-[15px] font-medium text-slate-950">{getRoleLabel(role)}</p>
-                      </div>
+                      {role === "athlete" ? (
+                        <div className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+                          <span className="flex size-4 items-center justify-center rounded-full bg-[#5d7f2c] text-white">
+                            <HugeiconsIcon icon={Fire03Icon} className="size-3" />
+                          </span>
+                          124 kcal
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span className="size-2 rounded-full bg-[#678c26]" />
+                          <p className="truncate text-[15px] font-medium text-slate-950">{getRoleLabel(role)}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
+                ) : role === "athlete" ? (
+                  <Link to="/athlete/profile" className="flex items-center gap-3">
+                    <img
+                      src={getProfileImage(role)}
+                      alt={`${getRoleLabel(role)} profile`}
+                      className="size-14 rounded-[24px] object-cover shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+                    />
+                    <div className="min-w-0 text-left">
+                      <div className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 shadow-[0_8px_18px_rgba(15,23,42,0.06)]">
+                        <span className="flex size-4 items-center justify-center rounded-full bg-[#5d7f2c] text-white">
+                          <HugeiconsIcon icon={Fire03Icon} className="size-3" />
+                        </span>
+                        124 kcal
+                      </div>
+                    </div>
+                  </Link>
                 ) : (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -320,29 +354,115 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative size-14 rounded-[24px] border border-slate-200/70 bg-white/95 text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:bg-white lg:size-8 lg:rounded-full lg:border-white/10 lg:bg-white/[0.04] lg:text-white lg:shadow-none lg:hover:bg-white/[0.1]" aria-label="Notifications">
-                      <HugeiconsIcon icon={Notification01Icon} className="size-3.5" />
-                      <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#ff6a55]" />
+                    <Button variant="ghost" size="icon" className="relative size-14 rounded-[24px] border border-slate-200/70 bg-white/95 text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] hover:bg-white lg:size-8 lg:rounded-full lg:border-white/10 lg:bg-white/[0.04] lg:text-white lg:shadow-none lg:hover:bg-white/[0.1]" aria-label={useAthleteDrawerMenu ? "Open menu" : "Notifications"}>
+                      <HugeiconsIcon icon={useAthleteDrawerMenu ? Menu01Icon : Notification01Icon} className="size-3.5" />
+                      {!useAthleteDrawerMenu ? <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#ff6a55]" /> : null}
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="right" showCloseButton={false} className="w-full border-l-slate-200 bg-white sm:max-w-md">
-                    <SheetHeader className="border-b border-slate-200 px-4 py-3">
-                      <div className="grid grid-cols-[auto_1fr_auto] items-center">
-                        <SheetClose asChild>
-                          <Button type="button" variant="ghost" size="icon" className="rounded-full" aria-label="Back">
-                            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-                          </Button>
-                        </SheetClose>
-                        <SheetTitle className="text-center text-base font-semibold text-slate-950">Notifications</SheetTitle>
-                        <span aria-hidden className="size-9" />
+                    {useAthleteDrawerMenu ? null : (
+                      <SheetHeader className="border-b border-slate-200 px-4 py-3">
+                        <div className="grid grid-cols-[auto_1fr_auto] items-center">
+                          <SheetClose asChild>
+                            <Button type="button" variant="ghost" size="icon" className="rounded-full" aria-label="Back">
+                              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+                            </Button>
+                          </SheetClose>
+                          <SheetTitle className="text-center text-base font-semibold text-slate-950">Notifications</SheetTitle>
+                          <span aria-hidden className="size-9" />
+                        </div>
+                      </SheetHeader>
+                    )}
+                    {useAthleteDrawerMenu ? (
+                      <div className="flex h-full flex-col px-4 pb-4 pt-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={getProfileImage(role)}
+                              alt="Athlete profile"
+                              className="size-12 rounded-[18px] object-cover"
+                            />
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-semibold tracking-[-0.03em] text-slate-950">
+                                {athleteProfile?.name ?? "Athlete"}
+                              </p>
+                              <p className="truncate text-xs text-slate-500">
+                                {athleteTeam?.name ?? athleteProfile?.eventGroup ?? userEmail}
+                              </p>
+                            </div>
+                          </div>
+                          <SheetClose asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-10 rounded-full border border-slate-200 bg-white text-slate-700 shadow-[0_8px_18px_rgba(15,23,42,0.06)]"
+                              aria-label="Close menu"
+                            >
+                              <span className="text-base leading-none">x</span>
+                            </Button>
+                          </SheetClose>
+                        </div>
+
+                        <div className="mt-7 space-y-1">
+                          {links.map((link) => (
+                            <SheetClose asChild key={link.href}>
+                              <Link
+                                to={link.href}
+                                className={cn(
+                                  "flex items-center justify-between rounded-[20px] px-1 py-3 text-[1.15rem] font-medium tracking-[-0.03em] text-slate-950",
+                                  pathname.startsWith(link.href) && "text-[#1368ff]",
+                                )}
+                              >
+                                <span>{link.label}</span>
+                                {pathname.startsWith(link.href) ? (
+                                  <span className="inline-flex size-2 rounded-full bg-[#1368ff]" />
+                                ) : null}
+                              </Link>
+                            </SheetClose>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 border-t border-slate-200 pt-5">
+                          <div className="space-y-3 text-sm text-slate-700">
+                            <SheetClose asChild>
+                              <Link to="/athlete/profile" className="block">
+                                Profile
+                              </Link>
+                            </SheetClose>
+                            <button type="button" className="block text-left" onClick={toggleTheme}>
+                              Theme
+                            </button>
+                            <SheetClose asChild>
+                              <Link to="/athlete/join" className="block">
+                                Join Team
+                              </Link>
+                            </SheetClose>
+                            <button type="button" className="block text-left" onClick={handleSignOut}>
+                              Sign out
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-6">
+                          <SheetClose asChild>
+                            <Link
+                              to="/athlete/log"
+                              className="flex h-[58px] items-center justify-center rounded-full bg-[linear-gradient(135deg,rgba(7,17,34,0.94)_0%,rgba(9,20,39,0.92)_100%)] px-5 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(5,12,24,0.24)]"
+                            >
+                              Start Workout
+                            </Link>
+                          </SheetClose>
+                        </div>
                       </div>
-                    </SheetHeader>
-                    <div className="space-y-3 p-4">
-                      <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-sm font-medium text-slate-950">No new notifications</p>
-                        <p className="text-xs text-slate-500">You are all caught up.</p>
+                    ) : (
+                      <div className="space-y-3 p-4">
+                        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-sm font-medium text-slate-950">No new notifications</p>
+                          <p className="text-xs text-slate-500">You are all caught up.</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </SheetContent>
                 </Sheet>
 
@@ -370,35 +490,50 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <main
           id="main-content"
-          className={cn("flex-1 overflow-y-auto lg:pb-0", mobileDetailMode ? "pb-6" : "pb-28")}
+          className={cn(
+            "flex-1 overflow-y-auto lg:pb-0",
+            mobileDetailMode ? "pb-0" : useAthleteHomeActionNav ? "pb-24" : "pb-28",
+          )}
         >
           <div className="min-h-full rounded-t-none bg-transparent lg:rounded-t-[40px]">{children}</div>
         </main>
       </div>
 
-      <nav className={cn("fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden", mobileDetailMode && "hidden")}>
-        <div className="mx-auto max-w-md rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(7,17,34,0.94)_0%,rgba(9,20,39,0.92)_100%)] px-2 py-2 shadow-[0_20px_60px_rgba(5,12,24,0.34)] backdrop-blur-xl">
-          <div className="grid grid-cols-5 gap-1">
-            {links.map((link) => {
-              const isActive = pathname.startsWith(link.href)
-              return (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  aria-label={link.label}
-                  title={link.label}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-medium transition-all duration-200",
-                    isActive ? "bg-white text-slate-950 shadow-sm" : "text-white/68 hover:bg-white/[0.06] hover:text-white",
-                  )}
-                >
-                  <HugeiconsIcon icon={link.icon} className={cn("size-5", isActive ? "text-[#1368ff]" : "text-white/78")} />
-                  <span className="truncate">{link.label}</span>
-                </Link>
-              )
-            })}
+      <nav className={cn("fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden", hideMobileNav && "hidden")}>
+        {useAthleteHomeActionNav ? (
+          <div className="mx-auto max-w-md">
+            <Link
+              to="/athlete/log"
+              className="flex h-[60px] items-center justify-center gap-2 rounded-[28px] bg-[linear-gradient(135deg,rgba(7,17,34,0.94)_0%,rgba(9,20,39,0.92)_100%)] px-5 text-white shadow-[0_20px_60px_rgba(5,12,24,0.34)]"
+            >
+              <span className="text-sm font-semibold">Start Workout</span>
+              <HugeiconsIcon icon={PlayIcon} className="size-4 text-[#6fb6ff]" />
+            </Link>
           </div>
-        </div>
+        ) : (
+          <div className="mx-auto max-w-md rounded-[28px] border border-white/12 bg-[linear-gradient(135deg,rgba(7,17,34,0.94)_0%,rgba(9,20,39,0.92)_100%)] px-2 py-2 shadow-[0_20px_60px_rgba(5,12,24,0.34)] backdrop-blur-xl">
+            <div className="grid grid-cols-5 gap-1">
+              {links.map((link) => {
+                const isActive = pathname.startsWith(link.href)
+                return (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    aria-label={link.label}
+                    title={link.label}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-1 rounded-[20px] px-2 py-2.5 text-[11px] font-medium transition-all duration-200",
+                      isActive ? "bg-white text-slate-950 shadow-sm" : "text-white/68 hover:bg-white/[0.06] hover:text-white",
+                    )}
+                  >
+                    <HugeiconsIcon icon={link.icon} className={cn("size-5", isActive ? "text-[#1368ff]" : "text-white/78")} />
+                    <span className="truncate">{link.label}</span>
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </nav>
     </div>
   )

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { LineChart } from "@mui/x-charts"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon, ArrowUp01Icon, StarAward02Icon } from "@hugeicons/core-free-icons"
@@ -35,6 +36,20 @@ export default function AthleteTrendsPage() {
   const athletePrs = mockPRs.filter((pr) => pr.athleteId === athlete.id).slice(0, 4)
   const latestTest = mockTestWeekResults.find((row) => row.athleteId === athlete.id)
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = true
+    window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: true } }))
+    const handleBack = () => window.history.back()
+    window.addEventListener("pacelab:mobile-detail-back", handleBack)
+
+    return () => {
+      ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = false
+      window.dispatchEvent(new CustomEvent("pacelab:mobile-detail-mode", { detail: { active: false } }))
+      window.removeEventListener("pacelab:mobile-detail-back", handleBack)
+    }
+  }, [])
+
   const averages = trend.length
     ? {
         readiness: Math.round(trend.reduce((sum, point) => sum + point.readiness, 0) / trend.length),
@@ -47,21 +62,13 @@ export default function AthleteTrendsPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="page-intro">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="page-intro-title">Progress</h1>
-            <p className="page-intro-copy">Best marks, trend lines, and testing signals in one athlete progress surface.</p>
-          </div>
-          <div className="hidden flex-wrap gap-2 md:flex">
-            <Button asChild variant="outline" className="h-11 rounded-full border-slate-200 px-5 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950">
-              <Link to="/athlete/prs">All PRs</Link>
-            </Button>
-            <Button asChild className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95">
-              <Link to="/athlete/test-week">Open test week</Link>
-            </Button>
-          </div>
-        </div>
+      <section className="space-y-2">
+        <h1 className="text-[2.15rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.5rem]">
+          Progress
+        </h1>
+        <p className="text-base leading-7 text-slate-600">
+          Best marks, trend lines, and testing signals in one athlete progress surface.
+        </p>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
