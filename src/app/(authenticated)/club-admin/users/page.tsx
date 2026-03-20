@@ -1,12 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  createCoachInvite,
+  getClubAdminOpsSnapshot,
+  insertAuditEvent,
+  reviewAccountRequest,
+  updateProfileRoleAndStatus,
+  type ClubAdminAccountRequest,
+  type ClubAdminInvite,
+  type ClubAdminTeamOption,
+  type ClubAdminUser,
+} from "@/lib/data/club-admin/ops-data"
 import { logAuditEvent } from "@/lib/mock-audit"
-import type { AccountRequest, ClubUser, UserRole } from "@/lib/mock-club-admin"
+import type { AccountRequest, ClubUser, CoachInvite, UserRole } from "@/lib/mock-club-admin"
+import { getBackendMode } from "@/lib/supabase/config"
 import {
   loadAccountRequestsSafe,
   loadInvitesSafe,
@@ -19,26 +31,91 @@ import {
 import { cn } from "@/lib/utils"
 
 export default function ClubAdminUsersPage() {
-  const [users, setUsers] = useState(loadUsersSafe)
-  const [invites, setInvites] = useState(loadInvitesSafe)
-  const [accountRequests, setAccountRequests] = useState(loadAccountRequestsSafe)
+  const backendMode = getBackendMode()
+  const [users, setUsers] = useState<ClubUser[]>(loadUsersSafe)
+  const [invites, setInvites] = useState<CoachInvite[]>(loadInvitesSafe)
+  const [accountRequests, setAccountRequests] = useState<AccountRequest[]>(loadAccountRequestsSafe)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [role, setRole] = useState<UserRole>("athlete")
   const [teamId, setTeamId] = useState<string>("none")
   const [coachInviteEmail, setCoachInviteEmail] = useState("")
   const [coachInviteTeamId, setCoachInviteTeamId] = useState<string>("none")
-  const [teams] = useState(loadTeamsSafe)
+  const [teams, setTeams] = useState(loadTeamsSafe)
+  const [backendError, setBackendError] = useState<string | null>(null)
 
   const saveUsers = (next: ClubUser[]) => {
     setUsers(next)
-    persistUsers(next)
+    if (backendMode !== "supabase") persistUsers(next)
   }
 
   const saveAccountRequests = (next: AccountRequest[]) => {
     setAccountRequests(next)
-    persistAccountRequests(next)
+    if (backendMode !== "supabase") persistAccountRequests(next)
   }
+
+  const emitAudit = async (action: string, target: string, detail?: string) => {
+    if (backendMode === "supabase") {
+      const result = await insertAuditEvent({ action, target, detail })
+      if (!result.ok) setBackendError((current) => current ?? result.error.message)
+      return
+    }
+    logAuditEvent({ actor: "club-admin", action, target, detail })
+  }
+
+  useEffect(() => {
+    if (backendMode !== "supabase") return
+    let cancelled = false
+
+    const loadSnapshot = async () => {
+      const result = await getClubAdminOpsSnapshot()
+      if (cancelled) return
+      if (!result.ok) {
+        setBackendError(result.error.message)
+        return
+      }
+
+      setBackendError(null)
+      setUsers(
+        result.data.users.map((row: ClubAdminUser) => ({
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          role: row.role,
+          status: row.status,
+          teamId: row.teamId,
+        })),
+      )
+      setInvites(
+        result.data.invites.map((row: ClubAdminInvite) => ({
+          id: row.id,
+          email: row.email,
+          teamId: row.teamId,
+          status: row.status === "revoked" ? "expired" : row.status,
+          createdAt: row.createdAt,
+        })),
+      )
+      setAccountRequests(
+        result.data.accountRequests.map((row: ClubAdminAccountRequest) => ({
+          id: row.id,
+          fullName: row.fullName,
+          email: row.email,
+          organization: row.organization,
+          role: row.role,
+          notes: row.notes,
+          status: row.status,
+          createdAt: row.createdAt,
+          reviewedAt: row.reviewedAt,
+        })),
+      )
+      setTeams(result.data.teams.map((row: ClubAdminTeamOption) => ({ id: row.id, name: row.name, eventGroup: "Sprint", status: "active" })))
+    }
+
+    void loadSnapshot()
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
@@ -51,6 +128,11 @@ export default function ClubAdminUsersPage() {
           <ClubAdminNav />
         </div>
       </section>
+      {backendError ? (
+        <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          Backend sync issue: {backendError}
+        </section>
+      ) : null}
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
         <div className="mobile-card-primary">
@@ -81,8 +163,12 @@ export default function ClubAdminUsersPage() {
             <Button
               type="button"
               className="h-12 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
-              onClick={() => {
+              onClick={async () => {
                 if (!name.trim() || !email.trim()) return
+                if (backendMode === "supabase") {
+                  setBackendError("Manual user provisioning is not wired yet in supabase mode.")
+                  return
+                }
                 const next: ClubUser = {
                   id: `u-${Date.now()}`,
                   name: name.trim(),
@@ -92,12 +178,7 @@ export default function ClubAdminUsersPage() {
                   teamId: teamId !== "none" ? teamId : undefined,
                 }
                 saveUsers([next, ...users])
-                logAuditEvent({
-                  actor: "club-admin",
-                  action: "user_create",
-                  target: next.email,
-                  detail: `${next.role}${next.teamId ? ` (${next.teamId})` : ""}`,
-                })
+                await emitAudit("user_create", next.email, `${next.role}${next.teamId ? ` (${next.teamId})` : ""}`)
                 setName("")
                 setEmail("")
                 setTeamId("none")
@@ -134,8 +215,37 @@ export default function ClubAdminUsersPage() {
               <Button
                 type="button"
                 className="h-12 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
-                onClick={() => {
+                onClick={async () => {
                   if (!coachInviteEmail.trim()) return
+                  if (backendMode === "supabase") {
+                    const result = await createCoachInvite({
+                      email: coachInviteEmail.trim().toLowerCase(),
+                      teamId: coachInviteTeamId !== "none" ? coachInviteTeamId : undefined,
+                    })
+                    if (!result.ok) {
+                      setBackendError(result.error.message)
+                      return
+                    }
+                    setInvites((current) => [
+                      {
+                        id: result.data.id,
+                        email: result.data.email,
+                        teamId: result.data.teamId,
+                        status: result.data.status === "revoked" ? "expired" : result.data.status,
+                        createdAt: result.data.createdAt,
+                      },
+                      ...current,
+                    ])
+                    await emitAudit(
+                      "coach_invite_send",
+                      coachInviteEmail.trim().toLowerCase(),
+                      coachInviteTeamId !== "none" ? `team ${coachInviteTeamId}` : "no team",
+                    )
+                    setCoachInviteEmail("")
+                    setCoachInviteTeamId("none")
+                    return
+                  }
+
                   const next = [
                     {
                       id: `invite-${Date.now()}`,
@@ -148,12 +258,11 @@ export default function ClubAdminUsersPage() {
                   ]
                   setInvites(next)
                   persistInvites(next)
-                  logAuditEvent({
-                    actor: "club-admin",
-                    action: "coach_invite_send",
-                    target: coachInviteEmail.trim().toLowerCase(),
-                    detail: coachInviteTeamId !== "none" ? `team ${coachInviteTeamId}` : "no team",
-                  })
+                  await emitAudit(
+                    "coach_invite_send",
+                    coachInviteEmail.trim().toLowerCase(),
+                    coachInviteTeamId !== "none" ? `team ${coachInviteTeamId}` : "no team",
+                  )
                   setCoachInviteEmail("")
                   setCoachInviteTeamId("none")
                 }}
@@ -206,7 +315,22 @@ export default function ClubAdminUsersPage() {
                         variant="outline"
                         className="rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
                         disabled={request.status !== "pending"}
-                        onClick={() => {
+                        onClick={async () => {
+                          if (backendMode === "supabase") {
+                            const result = await reviewAccountRequest({ requestId: request.id, status: "approved" })
+                            if (!result.ok) {
+                              setBackendError(result.error.message)
+                              return
+                            }
+                            saveAccountRequests(
+                              accountRequests.map((item) =>
+                                item.id === request.id ? { ...item, status: "approved", reviewedAt: new Date().toISOString() } : item,
+                              ),
+                            )
+                            await emitAudit("account_request_approve", request.email, request.role)
+                            return
+                          }
+
                           const nextUser: ClubUser = {
                             id: `u-${Date.now()}`,
                             name: request.fullName,
@@ -220,7 +344,7 @@ export default function ClubAdminUsersPage() {
                               item.id === request.id ? { ...item, status: "approved", reviewedAt: new Date().toISOString() } : item,
                             ),
                           )
-                          logAuditEvent({ actor: "club-admin", action: "account_request_approve", target: request.email, detail: request.role })
+                          await emitAudit("account_request_approve", request.email, request.role)
                         }}
                       >
                         Approve
@@ -230,13 +354,28 @@ export default function ClubAdminUsersPage() {
                         variant="outline"
                         className="rounded-full border-slate-200 text-slate-950 hover:border-[#1f8cff] hover:bg-[#eef5ff] hover:text-slate-950"
                         disabled={request.status !== "pending"}
-                        onClick={() => {
+                        onClick={async () => {
+                          if (backendMode === "supabase") {
+                            const result = await reviewAccountRequest({ requestId: request.id, status: "declined" })
+                            if (!result.ok) {
+                              setBackendError(result.error.message)
+                              return
+                            }
+                            saveAccountRequests(
+                              accountRequests.map((item) =>
+                                item.id === request.id ? { ...item, status: "declined", reviewedAt: new Date().toISOString() } : item,
+                              ),
+                            )
+                            await emitAudit("account_request_decline", request.email, request.role)
+                            return
+                          }
+
                           saveAccountRequests(
                             accountRequests.map((item) =>
                               item.id === request.id ? { ...item, status: "declined", reviewedAt: new Date().toISOString() } : item,
                             ),
                           )
-                          logAuditEvent({ actor: "club-admin", action: "account_request_decline", target: request.email, detail: request.role })
+                          await emitAudit("account_request_decline", request.email, request.role)
                         }}
                       >
                         Decline
@@ -266,10 +405,26 @@ export default function ClubAdminUsersPage() {
                   <div className="grid gap-2 sm:grid-cols-[150px_120px_auto] sm:items-center">
                     <Select
                       value={user.role}
-                      onValueChange={(value) => {
+                      onValueChange={async (value) => {
+                        if (backendMode === "supabase") {
+                          const result = await updateProfileRoleAndStatus({
+                            userId: user.id,
+                            role: value as UserRole,
+                            status: user.status,
+                          })
+                          if (!result.ok) {
+                            setBackendError(result.error.message)
+                            return
+                          }
+                          const next = users.map((item) => (item.id === user.id ? { ...item, role: value as UserRole } : item))
+                          saveUsers(next)
+                          await emitAudit("role_assign", user.email, `role ${value}`)
+                          return
+                        }
+
                         const next = users.map((item) => (item.id === user.id ? { ...item, role: value as UserRole } : item))
                         saveUsers(next)
-                        logAuditEvent({ actor: "club-admin", action: "role_assign", target: user.email, detail: `role ${value}` })
+                        await emitAudit("role_assign", user.email, `role ${value}`)
                       }}
                     >
                       <SelectTrigger className="h-11 rounded-[16px] border-slate-200 bg-white"><SelectValue /></SelectTrigger>
@@ -289,12 +444,29 @@ export default function ClubAdminUsersPage() {
                       type="button"
                       variant="outline"
                       className="mobile-action-secondary"
-                      onClick={() => {
+                      onClick={async () => {
+                        if (backendMode === "supabase") {
+                          const nextStatus = (user.status === "active" ? "disabled" : "active") as ClubUser["status"]
+                          const result = await updateProfileRoleAndStatus({
+                            userId: user.id,
+                            role: user.role,
+                            status: nextStatus,
+                          })
+                          if (!result.ok) {
+                            setBackendError(result.error.message)
+                            return
+                          }
+                          const next = users.map((item) => (item.id === user.id ? { ...item, status: nextStatus } : item))
+                          saveUsers(next)
+                          await emitAudit(nextStatus === "disabled" ? "user_disable" : "user_enable", user.email)
+                          return
+                        }
+
                         const next = users.map((item) =>
                           item.id === user.id ? { ...item, status: (item.status === "active" ? "disabled" : "active") as ClubUser["status"] } : item,
                         )
                         saveUsers(next)
-                        logAuditEvent({ actor: "club-admin", action: user.status === "active" ? "user_disable" : "user_enable", target: user.email })
+                        await emitAudit(user.status === "active" ? "user_disable" : "user_enable", user.email)
                       }}
                     >
                       {user.status === "active" ? "Disable" : "Enable"}
