@@ -39,7 +39,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { publishTrainingPlanForCurrentCoach } from "@/lib/data/training-plan/training-plan-data"
 import { EventGroup, mockAthletes, mockTeams, mockTrainingPlans, onPublishPlan, type Role } from "@/lib/mock-data"
+import { getBackendMode } from "@/lib/supabase/config"
 import { tenantStorageKey } from "@/lib/tenant-storage"
 import { cn } from "@/lib/utils"
 
@@ -606,7 +608,10 @@ export default function CoachTrainingPlanPageClient({
   const [visibilityDate, setVisibilityDate] = useState(toInputDate(new Date()))
   const [athletePermissions, setAthletePermissions] = useState<"none" | "read-only">("none")
   const [publishedCount, setPublishedCount] = useState<number | null>(null)
+  const [publishError, setPublishError] = useState<string | null>(null)
+  const [isPublishing, setIsPublishing] = useState(false)
   const [createdPlans, setCreatedPlans] = useState<TrainingPlanListItem[]>([])
+  const backendMode = getBackendMode()
 
   const isScopedCoach = initialRole === "coach" && Boolean(scopedTeamId)
   const effectiveTeamId = scopedTeamId ?? basics.teamId
@@ -787,6 +792,7 @@ export default function CoachTrainingPlanPageClient({
   const openReview = () => {
     if (!canPublish) return
     setEditingDayId(null)
+    setPublishError(null)
     setStep(3)
   }
 
@@ -794,6 +800,8 @@ export default function CoachTrainingPlanPageClient({
     setView("wizard")
     setStep(1)
     setPublishedCount(null)
+    setPublishError(null)
+    setIsPublishing(false)
     setEditingDayId(null)
     setShowSessionDetails(false)
     setDays([])
@@ -848,6 +856,7 @@ export default function CoachTrainingPlanPageClient({
     setWeekViewMode("calendar")
     setEditingDayId(null)
     setPublishedCount(null)
+    setPublishError(null)
     setView("wizard")
     setStep(2)
   }
@@ -986,29 +995,112 @@ export default function CoachTrainingPlanPageClient({
     }))
   }
 
-  const publishPlan = () => {
+  const publishPlan = async () => {
+    if (isPublishing || !canPublish) return
+    setPublishError(null)
+
+    let publishedPlanId = makeId("plan")
+    let count = countAthletesForTarget(assignTarget, effectiveTeamId, assignSubgroup, selectedAthleteIds)
+
+    if (backendMode === "supabase") {
+      const summarizeExerciseRows = (rows: ExerciseRow[]) =>
+        rows
+          .map((row) => [row.name, row.sets && row.reps ? `${row.sets} x ${row.reps}` : row.reps || row.sets, row.load ? `@ ${row.load}` : ""].filter(Boolean).join(" "))
+          .filter((line) => line.length > 0)
+          .slice(0, 6)
+
+      const summarizeBlock = (block: SessionBlock) => {
+        if (block.content.trim().length > 0) return `${block.title}: ${block.content.trim()}`
+        const exerciseSummary = summarizeExerciseRows(block.exerciseRows)
+        if (exerciseSummary.length > 0) return `${block.title}: ${exerciseSummary.join(" | ")}`
+        return block.title
+      }
+
+      const buildDayFocus = (day: SessionDay) => {
+        const primaryBlocks = day.blocks.map((block) => block.title).filter((value) => value.trim().length > 0).slice(0, 2)
+        if (primaryBlocks.length > 0) return primaryBlocks.join(" + ")
+        if (day.exerciseRows.length > 0) return "Structured session"
+        return day.title || "Programmed session"
+      }
+
+      setIsPublishing(true)
+      const publishResult = await (async () => {
+        try {
+          return await publishTrainingPlanForCurrentCoach({
+            name: basics.planName,
+            startDate: basics.startDate,
+            weeks: basics.durationWeeks,
+            notes: basics.notes.trim() || null,
+            teamId: effectiveTeamId || null,
+            visibilityStart,
+            visibilityDate: visibilityStart === "scheduled" ? visibilityDate : null,
+            assignTarget,
+            assignSubgroup: assignTarget === "subgroup" ? assignSubgroup : null,
+            selectedAthleteIds: assignTarget === "selected" ? selectedAthleteIds : [],
+            structure: Array.from({ length: basics.durationWeeks }, (_, index) => index + 1).map((weekNumber) => ({
+              weekNumber,
+              emphasis: null,
+              status: weekNumber === 1 ? "current" : "up-next",
+              days: days
+                .filter((day) => day.week === weekNumber && day.isTrainingDay)
+                .sort((left, right) => left.dayIndex - right.dayIndex)
+                .map((day) => {
+                  const exerciseSummary = summarizeExerciseRows(day.exerciseRows)
+                  const blockPreview = day.blocks.length > 0 ? day.blocks.map(summarizeBlock) : exerciseSummary
+                  return {
+                    dayIndex: day.dayIndex,
+                    dayLabel: day.label,
+                    date: day.dateIso,
+                    title: day.title || `${day.label} Session`,
+                    sessionType: day.sessionType,
+                    focus: buildDayFocus(day),
+                    status: dayStatus(day) === "Ready" ? "scheduled" : "up-next",
+                    durationMinutes: null,
+                    location: day.location.trim() || null,
+                    coachNote: day.notes.trim() || null,
+                    isTrainingDay: day.isTrainingDay,
+                    blockPreview: blockPreview.length > 0 ? blockPreview : [day.title || "Programmed session"],
+                  }
+                }),
+            })),
+          })
+        } finally {
+          setIsPublishing(false)
+        }
+      })()
+
+      if (!publishResult.ok) {
+        setPublishError(publishResult.error.message)
+        return
+      }
+
+      publishedPlanId = publishResult.data.planId
+      count = publishResult.data.assignedCount
+    }
+
     onPublishPlan()
-    const count = countAthletesForTarget(assignTarget, effectiveTeamId, assignSubgroup, selectedAthleteIds)
     setPublishedCount(count)
 
-    const key = tenantStorageKey(ASSIGNMENT_STORAGE_KEY)
-    const current = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown[]
-    const next = {
-      planName: basics.planName,
-      teamId: effectiveTeamId,
-      assignTarget,
-      assignSubgroup,
-      selectedAthleteIds,
-      visibilityStart,
-      visibilityDate,
-      athletePermissions,
-      publishedCount: count,
-      publishedAt: new Date().toISOString(),
+    if (backendMode !== "supabase") {
+      const key = tenantStorageKey(ASSIGNMENT_STORAGE_KEY)
+      const current = JSON.parse(window.localStorage.getItem(key) ?? "[]") as unknown[]
+      const next = {
+        planName: basics.planName,
+        teamId: effectiveTeamId,
+        assignTarget,
+        assignSubgroup,
+        selectedAthleteIds,
+        visibilityStart,
+        visibilityDate,
+        athletePermissions,
+        publishedCount: count,
+        publishedAt: new Date().toISOString(),
+      }
+      window.localStorage.setItem(key, JSON.stringify([next, ...current].slice(0, 50)))
     }
-    window.localStorage.setItem(key, JSON.stringify([next, ...current].slice(0, 50)))
     setCreatedPlans((prev) => [
       {
-        id: makeId("plan"),
+        id: publishedPlanId,
         name: basics.planName,
         teamId: effectiveTeamId,
         startDate: basics.startDate,
@@ -2986,12 +3078,19 @@ export default function CoachTrainingPlanPageClient({
                   <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
                   Back to Build
                 </Button>
-                <Button type="button" className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95" onClick={publishPlan} disabled={!canPublish}>
-                  Publish
+                <Button type="button" className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95" onClick={publishPlan} disabled={!canPublish || isPublishing}>
+                  {isPublishing ? "Publishing..." : "Publish"}
                 </Button>
               </div>
             </aside>
           </div>
+
+          {publishError ? (
+            <div className="rounded-[22px] border border-rose-200 bg-rose-50 p-4">
+              <p className="font-semibold text-rose-700">Publish failed</p>
+              <p className="mt-1 text-sm text-rose-700">{publishError}</p>
+            </div>
+          ) : null}
 
           {publishedCount !== null ? (
             <div className="space-y-3 rounded-[22px] border border-[#c9dcff] bg-[#eef5ff] p-4">

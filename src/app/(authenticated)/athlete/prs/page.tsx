@@ -1,20 +1,26 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getCurrentAthletePrRecords } from "@/lib/data/pr/pr-data"
+import type { PrRecord } from "@/lib/data/pr/types"
 import { tenantStorageKey } from "@/lib/tenant-storage"
 import { mockPRs } from "@/lib/mock-data"
+import { getBackendMode } from "@/lib/supabase/config"
 
 const categories = ["All", "Sprint", "Mid", "Distance", "Jumps", "Throws", "Strength"] as const
 type Category = (typeof categories)[number]
 const PR_OVERRIDE_STORAGE_KEY = "pacelab:pr-overrides"
 
 export default function AthletePrsPage() {
+  const backendMode = getBackendMode()
   const [category, setCategory] = useState<Category>("All")
+  const [backendPrs, setBackendPrs] = useState<PrRecord[]>([])
+  const [backendError, setBackendError] = useState<string | null>(null)
   const [overrides] = useState<Record<string, string>>(() => {
-    if (typeof window === "undefined") return {}
+    if (typeof window === "undefined" || backendMode === "supabase") return {}
     const raw = window.localStorage.getItem(tenantStorageKey(PR_OVERRIDE_STORAGE_KEY))
     if (!raw) return {}
     try {
@@ -24,7 +30,45 @@ export default function AthletePrsPage() {
     }
   })
 
+  useEffect(() => {
+    if (backendMode !== "supabase") return
+    let cancelled = false
+
+    const loadPrs = async () => {
+      const result = await getCurrentAthletePrRecords()
+      if (cancelled) return
+      if (!result.ok) {
+        setBackendError(result.error.message)
+        setBackendPrs([])
+        return
+      }
+      setBackendError(null)
+      setBackendPrs(result.data)
+    }
+
+    void loadPrs()
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
+
   const prs = useMemo(() => {
+    if (backendMode === "supabase") {
+      return (category === "All" ? backendPrs : backendPrs.filter((pr) => pr.category === category)).map((pr) => ({
+        id: pr.id,
+        athleteId: pr.athleteId,
+        athleteName: "Athlete",
+        event: pr.event,
+        category: pr.category,
+        bestValue: pr.bestValue,
+        previousValue: pr.previousValue ?? undefined,
+        date: new Date(`${pr.measuredOn}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+        legal: pr.isLegal,
+        wind: pr.wind ?? undefined,
+        type: pr.sourceType === "test-week" ? "Competition" : "Training",
+      }))
+    }
+
     const source = category === "All" ? mockPRs : mockPRs.filter((pr) => pr.category === category)
     return source.map((pr) => {
       const overrideValue = overrides[pr.event]
@@ -35,7 +79,7 @@ export default function AthletePrsPage() {
         bestValue: overrideValue,
       }
     })
-  }, [category, overrides])
+  }, [backendMode, backendPrs, category, overrides])
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4 p-4">
@@ -59,6 +103,7 @@ export default function AthletePrsPage() {
           </Select>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2">
+          {backendError ? <p className="sm:col-span-2 text-sm text-rose-700">Failed to load PRs: {backendError}</p> : null}
           {prs.map((pr) => (
             <div key={pr.id} className="space-y-2 rounded-lg border p-3">
               <div className="flex items-center justify-between">

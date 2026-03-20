@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import { getAssignedTrainingPlansForCurrentAthlete, getTrainingPlanDetail } from "@/lib/data/training-plan/training-plan-data"
+import type { TrainingPlanDay, TrainingPlanDetail, TrainingPlanSummary } from "@/lib/data/training-plan/types"
 import { tenantStorageKey } from "@/lib/tenant-storage"
 import {
   mockAthleteTrainingPlanDetails,
   mockAthletes,
   mockTeams,
   mockTrainingPlans,
-  type AthletePlanDay,
 } from "@/lib/mock-data"
+import { getBackendMode } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
 
 const ASSIGNMENT_STORAGE_KEY = "pacelab:plan-assignments"
@@ -37,7 +39,7 @@ function formatDayDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })
 }
 
-const typeToneMap: Record<AthletePlanDay["type"], string> = {
+const typeToneMap: Record<TrainingPlanDay["sessionType"], string> = {
   Track: "bg-[#dbeafe] text-[#1d4ed8]",
   Gym: "bg-[#ede9fe] text-[#6d28d9]",
   Recovery: "bg-[#dcfce7] text-[#15803d]",
@@ -46,10 +48,15 @@ const typeToneMap: Record<AthletePlanDay["type"], string> = {
 }
 
 export default function AthleteTrainingPlanPage() {
+  const backendMode = getBackendMode()
   const athlete = mockAthletes[0]
   const [selectedWeekNumber, setSelectedWeekNumber] = useState<number | null>(null)
+  const [backendPlans, setBackendPlans] = useState<TrainingPlanSummary[]>([])
+  const [backendPlanDetail, setBackendPlanDetail] = useState<TrainingPlanDetail | null>(null)
+  const [backendLoading, setBackendLoading] = useState(false)
+  const [backendError, setBackendError] = useState<string | null>(null)
   const [storageAssignments] = useState<PlanAssignment[]>(() => {
-    if (typeof window === "undefined") return []
+    if (typeof window === "undefined" || backendMode === "supabase") return []
     const raw = window.localStorage.getItem(tenantStorageKey(ASSIGNMENT_STORAGE_KEY))
     if (!raw) return []
     try {
@@ -73,7 +80,7 @@ export default function AthleteTrainingPlanPage() {
     }
   }, [])
 
-  const plans = useMemo(() => {
+  const mockPlans = useMemo(() => {
     const base = mockTrainingPlans.filter(
       (plan) => plan.teamId === athlete.teamId || (plan.assignedTo === "athlete" && plan.assignedAthleteIds?.includes(athlete.id)),
     )
@@ -90,8 +97,102 @@ export default function AthleteTrainingPlanPage() {
     return [...deduped.values()]
   }, [athlete.id, athlete.teamId, storageAssignments])
 
-  const activePlan = plans[0] ?? null
-  const activePlanDetail = mockAthleteTrainingPlanDetails.find((detail) => detail.planId === activePlan?.id) ?? null
+  useEffect(() => {
+    if (backendMode !== "supabase") return
+    let cancelled = false
+
+    const loadPlans = async () => {
+      setBackendLoading(true)
+      setBackendError(null)
+      const result = await getAssignedTrainingPlansForCurrentAthlete()
+      if (cancelled) return
+      if (!result.ok) {
+        setBackendPlans([])
+        setBackendPlanDetail(null)
+        setBackendError(result.error.message)
+        setBackendLoading(false)
+        return
+      }
+
+      setBackendPlans(result.data)
+      setBackendLoading(false)
+    }
+
+    void loadPlans()
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
+
+  const activePlan =
+    backendMode === "supabase"
+      ? backendPlans[0] ?? null
+      : ((mockPlans[0]
+          ? {
+              id: mockPlans[0].id,
+              name: mockPlans[0].name,
+              teamId: mockPlans[0].teamId,
+              startDate: mockPlans[0].startDate,
+              weeks: mockPlans[0].weeks,
+              status: "published",
+            }
+          : null) satisfies TrainingPlanSummary | null)
+
+  useEffect(() => {
+    if (backendMode !== "supabase") return
+    if (!activePlan?.id) {
+      setBackendPlanDetail(null)
+      return
+    }
+
+    let cancelled = false
+    const loadDetail = async () => {
+      const result = await getTrainingPlanDetail(activePlan.id)
+      if (cancelled) return
+      if (!result.ok) {
+        setBackendError(result.error.message)
+        setBackendPlanDetail(null)
+        return
+      }
+      setBackendPlanDetail(result.data)
+    }
+
+    void loadDetail()
+    return () => {
+      cancelled = true
+    }
+  }, [activePlan?.id, backendMode])
+
+  const activePlanDetail = useMemo<TrainingPlanDetail | null>(() => {
+    if (backendMode === "supabase") return backendPlanDetail
+    const mockDetail = mockAthleteTrainingPlanDetails.find((detail) => detail.planId === activePlan?.id)
+    if (!mockDetail) return null
+
+    return {
+      planId: mockDetail.planId,
+      weeks: mockDetail.weeks.map((week) => ({
+        id: `${mockDetail.planId}-week-${week.weekNumber}`,
+        weekNumber: week.weekNumber,
+        emphasis: week.emphasis,
+        status: week.status,
+        days: week.days.map((day) => ({
+          id: day.id,
+          dayIndex: Number.parseInt(day.id.split("-").at(-1) ?? "0", 10) || 0,
+          dayLabel: day.dayLabel,
+          date: day.date,
+          title: day.title,
+          sessionType: day.type,
+          focus: day.focus,
+          status: day.status,
+          durationMinutes: Number.parseInt(day.duration, 10) || null,
+          location: day.location,
+          coachNote: day.coachNote ?? null,
+          blockPreview: day.blockPreview,
+        })),
+      })),
+    }
+  }, [activePlan?.id, backendMode, backendPlanDetail])
+
   const currentWeek = activePlanDetail?.weeks.find((week) => week.status === "current") ?? activePlanDetail?.weeks[0] ?? null
   const selectedWeek =
     activePlanDetail?.weeks.find((week) => week.weekNumber === selectedWeekNumber) ??
@@ -99,9 +200,21 @@ export default function AthleteTrainingPlanPage() {
     null
   const team = mockTeams.find((item) => item.id === activePlan?.teamId)
 
+  useEffect(() => {
+    setSelectedWeekNumber(null)
+  }, [activePlan?.id])
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-5 px-4 pb-6 pt-4 sm:px-6 sm:pt-6">
-      {activePlan && activePlanDetail && selectedWeek ? (
+      {backendMode === "supabase" && backendLoading ? (
+        <section className="rounded-[26px] border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px]">
+          Loading assigned plans...
+        </section>
+      ) : backendMode === "supabase" && backendError ? (
+        <section className="rounded-[26px] border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700 shadow-[0_18px_48px_rgba(15,23,42,0.06)] sm:rounded-[30px]">
+          Failed to load plans: {backendError}
+        </section>
+      ) : activePlan && activePlanDetail && selectedWeek ? (
         <>
           <section className="space-y-4">
             <div className="space-y-2">
@@ -135,7 +248,7 @@ export default function AthleteTrainingPlanPage() {
 
               <div className="mt-4 rounded-[20px] bg-[#031733] px-4 py-4 text-white">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8db8ff]">Week emphasis</p>
-                <p className="mt-2 text-sm text-white/80">{selectedWeek.emphasis}</p>
+                <p className="mt-2 text-sm text-white/80">{selectedWeek.emphasis ?? "No emphasis set."}</p>
               </div>
             </div>
           </section>
@@ -174,7 +287,7 @@ export default function AthleteTrainingPlanPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-slate-950">Week {week.weekNumber}</p>
-                        <p className="mt-1 text-sm text-slate-500">{week.emphasis}</p>
+                        <p className="mt-1 text-sm text-slate-500">{week.emphasis ?? "No emphasis set."}</p>
                       </div>
                       <span className={cn("text-xs font-semibold uppercase tracking-[0.14em]", statusTone)}>
                         {week.status === "completed" ? "Done" : week.status === "current" ? "Current" : "Next"}
@@ -212,7 +325,7 @@ export default function AthleteTrainingPlanPage() {
                       <p className="mt-1 text-sm text-slate-500">{day.focus}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", typeToneMap[day.type])}>{day.type}</span>
+                      <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", typeToneMap[day.sessionType])}>{day.sessionType}</span>
                       <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", statusTone)}>
                         {day.status === "completed" ? "Completed" : day.status === "scheduled" ? "Scheduled" : "Up next"}
                       </span>
@@ -222,11 +335,11 @@ export default function AthleteTrainingPlanPage() {
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <div className="rounded-[16px] bg-[#f8fafc] px-3 py-3">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Duration</p>
-                      <p className="mt-1.5 text-sm font-semibold text-slate-950">{day.duration}</p>
+                      <p className="mt-1.5 text-sm font-semibold text-slate-950">{day.durationMinutes ? `${day.durationMinutes} min` : "Programmed"}</p>
                     </div>
                     <div className="rounded-[16px] bg-[#f8fafc] px-3 py-3">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Location</p>
-                      <p className="mt-1.5 text-sm font-semibold text-slate-950">{day.location}</p>
+                      <p className="mt-1.5 text-sm font-semibold text-slate-950">{day.location ?? "TBD"}</p>
                     </div>
                   </div>
 

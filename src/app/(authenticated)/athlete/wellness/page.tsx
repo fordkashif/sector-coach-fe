@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
-import { onSaveWellness, type Readiness } from "@/lib/mock-data"
+import { submitCurrentAthleteWellnessEntry } from "@/lib/data/wellness/wellness-data"
+import type { WellnessReadiness } from "@/lib/data/wellness/types"
+import { onSaveWellness } from "@/lib/mock-data"
+import { getBackendMode } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
 
 function metricLabel(label: string, value: number) {
@@ -19,20 +22,45 @@ function metricLabel(label: string, value: number) {
 }
 
 export default function AthleteWellnessPage() {
+  const backendMode = getBackendMode()
   const [sleep, setSleep] = useState(8)
   const [soreness, setSoreness] = useState(2)
   const [fatigue, setFatigue] = useState(2)
   const [mood, setMood] = useState(4)
   const [stress, setStress] = useState(2)
   const [notes, setNotes] = useState("")
-  const [result, setResult] = useState<Readiness | null>(null)
+  const [result, setResult] = useState<WellnessReadiness | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    setSubmitError(null)
     onSaveWellness()
 
     const loadScore = (soreness + fatigue + stress) / 3
-    const readiness: Readiness = loadScore <= 2.5 && sleep >= 7 && mood >= 3 ? "green" : loadScore <= 3.5 && sleep >= 6 ? "yellow" : "red"
+    const readiness: WellnessReadiness = loadScore <= 2.5 && sleep >= 7 && mood >= 3 ? "green" : loadScore <= 3.5 && sleep >= 6 ? "yellow" : "red"
+
+    if (backendMode === "supabase") {
+      setIsSaving(true)
+      const today = new Date().toISOString().slice(0, 10)
+      const persistResult = await submitCurrentAthleteWellnessEntry({
+        entryDate: today,
+        sleepHours: sleep,
+        soreness,
+        fatigue,
+        mood,
+        stress,
+        notes: notes.trim() || null,
+      })
+      setIsSaving(false)
+      if (!persistResult.ok) {
+        setSubmitError(persistResult.error.message)
+        return
+      }
+      setResult(persistResult.data.readiness)
+      return
+    }
 
     setResult(readiness)
   }
@@ -120,9 +148,10 @@ export default function AthleteWellnessPage() {
               />
             </div>
 
-            <Button type="submit" className="h-12 w-full rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95">
-              Save check-in
+            <Button type="submit" disabled={isSaving} className="h-12 w-full rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95">
+              {isSaving ? "Saving..." : "Save check-in"}
             </Button>
+            {submitError ? <p className="text-sm text-rose-700">{submitError}</p> : null}
           </form>
         </div>
 

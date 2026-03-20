@@ -1,0 +1,188 @@
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { err, mapPostgrestError, ok, type DataError, type Result } from "@/lib/data/result"
+import type {
+  WellnessEntry,
+  WellnessReadiness,
+  WellnessSubmissionInput,
+  WellnessTrendPoint,
+} from "@/lib/data/wellness/types"
+import { getBrowserSupabaseClient } from "@/lib/supabase/client"
+import { getBackendMode } from "@/lib/supabase/config"
+
+type ClientResolution =
+  | { ok: true; client: SupabaseClient }
+  | { ok: false; error: DataError }
+
+type AthleteContext = {
+  athleteId: string
+  tenantId: string
+  userId: string
+}
+
+function requireSupabaseClient(operation: string): ClientResolution {
+  if (getBackendMode() !== "supabase") {
+    return {
+      ok: false,
+      error: { code: "UNKNOWN", message: `[${operation}] backend mode is not 'supabase'.` },
+    }
+  }
+
+  const client = getBrowserSupabaseClient()
+  if (!client) {
+    return {
+      ok: false,
+      error: { code: "UNKNOWN", message: `[${operation}] Supabase client is not configured.` },
+    }
+  }
+
+  return { ok: true, client }
+}
+
+async function getCurrentAthleteContext(client: SupabaseClient): Promise<Result<AthleteContext>> {
+  const { data: authSession } = await client.auth.getSession()
+  const userId = authSession.session?.user.id
+  if (!userId) return err("UNAUTHORIZED", "No authenticated Supabase session found.")
+
+  const { data: athlete, error } = await client
+    .from("athletes")
+    .select("id, tenant_id")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+  if (!athlete) return err("NOT_FOUND", "No athlete profile found for current user.")
+
+  return ok({
+    athleteId: athlete.id,
+    tenantId: athlete.tenant_id,
+    userId,
+  })
+}
+
+function readinessFromInputs(input: WellnessSubmissionInput): WellnessReadiness {
+  const loadScore = (input.soreness + input.fatigue + input.stress) / 3
+  if (loadScore <= 2.5 && input.sleepHours >= 7 && input.mood >= 3) return "green"
+  if (loadScore <= 3.5 && input.sleepHours >= 6) return "yellow"
+  return "red"
+}
+
+function readinessScoreFromInputs(input: WellnessSubmissionInput, readiness: WellnessReadiness): number {
+  const sleepContribution = Math.max(0, Math.min(1, input.sleepHours / 9)) * 30
+  const moodContribution = (input.mood / 5) * 20
+  const sorenessPenalty = ((5 - input.soreness) / 4) * 15
+  const fatiguePenalty = ((5 - input.fatigue) / 4) * 20
+  const stressPenalty = ((5 - input.stress) / 4) * 15
+  const baseScore = Math.round(sleepContribution + moodContribution + sorenessPenalty + fatiguePenalty + stressPenalty)
+
+  if (readiness === "green") return Math.max(baseScore, 70)
+  if (readiness === "yellow") return Math.min(Math.max(baseScore, 45), 79)
+  return Math.min(baseScore, 55)
+}
+
+function trainingLoadFromInputs(input: WellnessSubmissionInput): number {
+  const load = Math.round(((input.soreness + input.fatigue + input.stress) / 15) * 100)
+  return Math.max(0, Math.min(100, load))
+}
+
+type WellnessRow = {
+  id: string
+  athlete_id: string
+  entry_date: string
+  sleep_hours: number
+  soreness: number
+  fatigue: number
+  mood: number
+  stress: number
+  training_load: number
+  readiness: WellnessReadiness
+  readiness_score: number
+  notes: string | null
+  created_at: string
+}
+
+function mapWellnessRow(row: WellnessRow): WellnessEntry {
+  return {
+    id: row.id,
+    athleteId: row.athlete_id,
+    entryDate: row.entry_date,
+    sleepHours: row.sleep_hours,
+    soreness: row.soreness,
+    fatigue: row.fatigue,
+    mood: row.mood,
+    stress: row.stress,
+    trainingLoad: row.training_load,
+    readiness: row.readiness,
+    readinessScore: row.readiness_score,
+    notes: row.notes,
+    createdAt: row.created_at,
+  }
+}
+
+export async function submitCurrentAthleteWellnessEntry(input: WellnessSubmissionInput): Promise<Result<WellnessEntry>> {
+  const clientResult = requireSupabaseClient("submitCurrentAthleteWellnessEntry")
+  if (!clientResult.ok) return clientResult
+
+  const athleteContext = await getCurrentAthleteContext(clientResult.client)
+  if (!athleteContext.ok) return athleteContext
+
+  const readiness = readinessFromInputs(input)
+  const trainingLoad = trainingLoadFromInputs(input)
+  const readinessScore = readinessScoreFromInputs(input, readiness)
+
+  const payload = {
+    tenant_id: athleteContext.data.tenantId,
+    athlete_id: athleteContext.data.athleteId,
+    entry_date: input.entryDate,
+    sleep_hours: input.sleepHours,
+    soreness: input.soreness,
+    fatigue: input.fatigue,
+    mood: input.mood,
+    stress: input.stress,
+    training_load: trainingLoad,
+    readiness,
+    readiness_score: readinessScore,
+    notes: input.notes,
+    submitted_by_user_id: athleteContext.data.userId,
+  }
+
+  const { data, error } = await clientResult.client
+    .from("wellness_entries")
+    .upsert(payload, { onConflict: "athlete_id,entry_date" })
+    .select("id, athlete_id, entry_date, sleep_hours, soreness, fatigue, mood, stress, training_load, readiness, readiness_score, notes, created_at")
+    .single()
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+  return ok(mapWellnessRow(data))
+}
+
+export async function getCurrentAthleteWellnessEntries(limit = 28): Promise<Result<WellnessEntry[]>> {
+  const clientResult = requireSupabaseClient("getCurrentAthleteWellnessEntries")
+  if (!clientResult.ok) return clientResult
+
+  const athleteContext = await getCurrentAthleteContext(clientResult.client)
+  if (!athleteContext.ok) return athleteContext
+
+  const { data, error } = await clientResult.client
+    .from("wellness_entries")
+    .select("id, athlete_id, entry_date, sleep_hours, soreness, fatigue, mood, stress, training_load, readiness, readiness_score, notes, created_at")
+    .eq("athlete_id", athleteContext.data.athleteId)
+    .order("entry_date", { ascending: true })
+    .limit(limit)
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+  return ok(((data as WellnessRow[] | null) ?? []).map(mapWellnessRow))
+}
+
+export async function getCurrentAthleteWellnessTrend(limit = 28): Promise<Result<WellnessTrendPoint[]>> {
+  const entriesResult = await getCurrentAthleteWellnessEntries(limit)
+  if (!entriesResult.ok) return entriesResult
+
+  return ok(
+    entriesResult.data.map((entry) => ({
+      date: entry.entryDate,
+      readiness: entry.readinessScore,
+      fatigue: Math.max(0, Math.min(100, Math.round((entry.fatigue / 5) * 100))),
+      trainingLoad: entry.trainingLoad,
+    })),
+  )
+}

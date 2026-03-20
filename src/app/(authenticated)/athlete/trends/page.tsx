@@ -1,12 +1,18 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { LineChart } from "@mui/x-charts"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon, ArrowUp01Icon, StarAward02Icon } from "@hugeicons/core-free-icons"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import { getCurrentAthletePrRecords } from "@/lib/data/pr/pr-data"
+import type { PrRecord } from "@/lib/data/pr/types"
+import { getLatestBenchmarkSnapshotForCurrentAthlete } from "@/lib/data/test-week/test-week-data"
+import { getCurrentAthleteWellnessTrend } from "@/lib/data/wellness/wellness-data"
+import type { WellnessTrendPoint } from "@/lib/data/wellness/types"
 import { mockAthletes, mockPRs, mockTestWeekResults, mockTrendSeries } from "@/lib/mock-data"
+import { getBackendMode } from "@/lib/supabase/config"
 
 const chartSx = {
   "& .MuiChartsAxis-line, & .MuiChartsAxis-tick": {
@@ -31,9 +37,24 @@ const chartSx = {
 }
 
 export default function AthleteTrendsPage() {
+  const backendMode = getBackendMode()
   const athlete = mockAthletes[0]
-  const trend = mockTrendSeries[athlete.id] ?? []
-  const athletePrs = mockPRs.filter((pr) => pr.athleteId === athlete.id).slice(0, 4)
+  const [backendTrend, setBackendTrend] = useState<WellnessTrendPoint[]>([])
+  const [backendPrs, setBackendPrs] = useState<PrRecord[]>([])
+  const [backendBenchmarks, setBackendBenchmarks] = useState<Record<string, string>>({})
+  const [backendError, setBackendError] = useState<string | null>(null)
+
+  const trend = backendMode === "supabase" ? backendTrend : mockTrendSeries[athlete.id] ?? []
+  const athletePrs =
+    backendMode === "supabase"
+      ? backendPrs.slice(0, 4).map((pr) => ({
+          id: pr.id,
+          event: pr.event,
+          date: new Date(`${pr.measuredOn}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+          bestValue: pr.bestValue,
+          previousValue: pr.previousValue ?? undefined,
+        }))
+      : mockPRs.filter((pr) => pr.athleteId === athlete.id).slice(0, 4)
   const latestTest = mockTestWeekResults.find((row) => row.athleteId === athlete.id)
 
   useEffect(() => {
@@ -49,6 +70,47 @@ export default function AthleteTrendsPage() {
       window.removeEventListener("pacelab:mobile-detail-back", handleBack)
     }
   }, [])
+
+  useEffect(() => {
+    if (backendMode !== "supabase") return
+    let cancelled = false
+
+    const loadBackendData = async () => {
+      const [trendResult, prResult, benchmarkResult] = await Promise.all([
+        getCurrentAthleteWellnessTrend(28),
+        getCurrentAthletePrRecords(),
+        getLatestBenchmarkSnapshotForCurrentAthlete(),
+      ])
+
+      if (cancelled) return
+
+      if (!trendResult.ok) {
+        setBackendError(trendResult.error.message)
+      } else {
+        setBackendTrend(trendResult.data)
+      }
+
+      if (!prResult.ok) {
+        setBackendError((current) => current ?? prResult.error.message)
+      } else {
+        setBackendPrs(prResult.data)
+      }
+
+      if (!benchmarkResult.ok) {
+        setBackendError((current) => current ?? benchmarkResult.error.message)
+      } else {
+        const mapped = Object.fromEntries(
+          (benchmarkResult.data?.results ?? []).map((row) => [row.label.toLowerCase(), row.valueText]),
+        )
+        setBackendBenchmarks(mapped)
+      }
+    }
+
+    void loadBackendData()
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
 
   const averages = trend.length
     ? {
@@ -69,6 +131,7 @@ export default function AthleteTrendsPage() {
         <p className="text-base leading-7 text-slate-600">
           Best marks, trend lines, and testing signals in one athlete progress surface.
         </p>
+        {backendError ? <p className="text-sm text-rose-700">Some backend data could not be loaded: {backendError}</p> : null}
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
@@ -157,10 +220,34 @@ export default function AthleteTrendsPage() {
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
               {[
-                { label: "30m", value: latestTest?.thirtyM?.value ?? "-" },
-                { label: "Flying 30m", value: latestTest?.flyingThirtyM?.value ?? "-" },
-                { label: "Squat 1RM", value: latestTest?.squat1RM?.value ?? "-" },
-                { label: "CMJ", value: latestTest?.cmj?.value ?? "-" },
+                {
+                  label: "30m",
+                  value:
+                    backendMode === "supabase"
+                      ? backendBenchmarks["30m sprint"] ?? backendBenchmarks["30m"] ?? "-"
+                      : latestTest?.thirtyM?.value ?? "-",
+                },
+                {
+                  label: "Flying 30m",
+                  value:
+                    backendMode === "supabase"
+                      ? backendBenchmarks["flying 30m"] ?? backendBenchmarks["flying 30"] ?? "-"
+                      : latestTest?.flyingThirtyM?.value ?? "-",
+                },
+                {
+                  label: "Squat 1RM",
+                  value:
+                    backendMode === "supabase"
+                      ? backendBenchmarks["back squat 1rm"] ?? backendBenchmarks["squat 1rm"] ?? "-"
+                      : latestTest?.squat1RM?.value ?? "-",
+                },
+                {
+                  label: "CMJ",
+                  value:
+                    backendMode === "supabase"
+                      ? backendBenchmarks["cmj"] ?? backendBenchmarks["counter movement jump"] ?? "-"
+                      : latestTest?.cmj?.value ?? "-",
+                },
               ].map((item) => (
                 <div key={item.label} className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.label}</p>

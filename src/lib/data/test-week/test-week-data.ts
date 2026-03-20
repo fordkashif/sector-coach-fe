@@ -214,6 +214,27 @@ function parseNumericValue(valueText: string) {
   return Number.isFinite(numeric) ? numeric : null
 }
 
+function categoryForTestUnit(unit: ActiveTestDefinition["unit"]): string {
+  if (unit === "weight") return "Strength"
+  if (unit === "height") return "Jumps"
+  if (unit === "distance") return "Distance"
+  if (unit === "time") return "Sprint"
+  return "Performance"
+}
+
+function parseComparableNumericFromText(value: string): number | null {
+  const normalized = value.replace(",", ".").replace(/[^\d.-]/g, "")
+  const parsed = Number.parseFloat(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function isBetterPerformance(unit: ActiveTestDefinition["unit"], candidate: number | null, baseline: number | null): boolean {
+  if (candidate === null) return false
+  if (baseline === null) return true
+  if (unit === "time") return candidate < baseline
+  return candidate > baseline
+}
+
 export async function getLatestBenchmarkSnapshotForCurrentAthlete(): Promise<Result<LatestBenchmarkSnapshot | null>> {
   const clientResult = requireSupabaseClient("getLatestBenchmarkSnapshotForCurrentAthlete")
   if (!clientResult.ok) return clientResult
@@ -302,6 +323,8 @@ export async function submitCurrentAthleteTestWeekResults(
         test_week_id: context.testWeekId,
         test_definition_id: definition.id,
         athlete_id: context.athleteId,
+        test_name: definition.name,
+        test_unit: definition.unit,
         value_text: value,
         value_numeric: parseNumericValue(value),
       }
@@ -310,6 +333,8 @@ export async function submitCurrentAthleteTestWeekResults(
       test_week_id: string
       test_definition_id: string
       athlete_id: string
+      test_name: string
+      test_unit: ActiveTestDefinition["unit"]
       value_text: string
       value_numeric: number | null
     } => Boolean(item))
@@ -342,6 +367,41 @@ export async function submitCurrentAthleteTestWeekResults(
     .upsert(payload, { onConflict: "test_week_id,test_definition_id,athlete_id" })
 
   if (upsertError) return { ok: false, error: mapPostgrestError(upsertError) }
+
+  for (const row of toPersist) {
+    const { data: existingPr, error: existingPrError } = await clientResult.client
+      .from("pr_records")
+      .select("id, best_value")
+      .eq("athlete_id", context.athleteId)
+      .eq("event", row.test_name)
+      .maybeSingle()
+
+    if (existingPrError) return { ok: false, error: mapPostgrestError(existingPrError) }
+
+    const existingNumeric = existingPr ? parseComparableNumericFromText(existingPr.best_value as string) : null
+    if (!isBetterPerformance(row.test_unit, row.value_numeric, existingNumeric)) continue
+
+    const { error: prUpsertError } = await clientResult.client
+      .from("pr_records")
+      .upsert(
+        {
+          tenant_id: athleteRow.tenant_id as string,
+          athlete_id: context.athleteId,
+          event: row.test_name,
+          category: categoryForTestUnit(row.test_unit),
+          best_value: row.value_text,
+          previous_value: existingPr?.best_value ?? null,
+          measured_on: submittedAt.slice(0, 10),
+          source_type: "test-week",
+          source_ref: `${context.testWeekId}:${row.test_definition_id}`,
+          is_legal: true,
+          recorded_by_user_id: null,
+        },
+        { onConflict: "athlete_id,event" },
+      )
+
+    if (prUpsertError) return { ok: false, error: mapPostgrestError(prUpsertError) }
+  }
 
   return ok({
     athleteId: context.athleteId,
