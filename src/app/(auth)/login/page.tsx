@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useState, type FormEvent } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -56,6 +56,7 @@ const emptyRequestForm: RequestFormState = {
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const isSupabaseMode = getBackendMode() === "supabase"
   const [mode, setMode] = useState<AuthMode>("signin")
   const [email, setEmail] = useState("")
@@ -64,6 +65,10 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [requestForm, setRequestForm] = useState<RequestFormState>(emptyRequestForm)
   const [requestSubmitted, setRequestSubmitted] = useState(false)
+  const safeRedirect = (() => {
+    const candidate = searchParams.get("redirect")
+    return candidate && candidate.startsWith("/") ? candidate : null
+  })()
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -101,6 +106,10 @@ export default function LoginPage() {
       window.localStorage.setItem("pacelab-remember-me", rememberMe ? "true" : "false")
 
       setError("")
+      if (safeRedirect) {
+        navigate(safeRedirect)
+        return
+      }
       if (profile.role === "athlete") {
         navigate("/athlete/home")
         return
@@ -269,6 +278,14 @@ export default function LoginPage() {
                       Request account
                     </button>
                   </div>
+                  {mode === "request" ? (
+                    <div className="text-sm text-slate-600">
+                      New organization?{" "}
+                      <Link to="/create-club-account" className="font-semibold text-[#1368ff] hover:underline">
+                        Create club account
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
 
                 {mode === "signin" ? (
