@@ -6,7 +6,7 @@ import { initializeSupabaseRuntime } from "@/lib/supabase/bootstrap"
 import "@/styles/globals.css"
 
 initializeSupabaseRuntime()
-
+//test
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
