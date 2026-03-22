@@ -479,6 +479,7 @@ Companion plan:
   - Phase 3 provisioning started: added `approve_and_provision_tenant_request` so platform-admin approval now creates tenant defaults (`tenants`, `club_profiles`, `billing_profiles`) and the frontend triggers the initial club-admin Supabase OTP access email with tenant bootstrap metadata.
   - Platform-admin queue now tracks initial access invite state (`access_invite_sent_at`, `access_invite_last_error`) and supports resend of the initial club-admin access invite after provisioning.
   - Initial club-admin access invite dispatch is now owned by Supabase Edge Function `platform-admin-send-club-admin-invite` instead of direct browser `signInWithOtp` calls, with server-side platform-admin validation and invite-state updates.
+  - Added provider-backed email notification dispatcher Edge Function `dispatch-notification-emails` plus manual platform-admin drain action for pending email `notification_events`, with delivery-attempt/provider tracking fields on notification rows.
 
 ## Quick Start Prompt
 

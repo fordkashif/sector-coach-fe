@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
   approveAndProvisionTenantRequest,
+  dispatchPendingNotificationEmails,
   getPlatformAdminRequestQueue,
   reviewTenantProvisionRequest,
   sendInitialClubAdminAccessInvite,
@@ -21,6 +22,7 @@ export default function PlatformAdminRequestsPage() {
   const [requests, setRequests] = useState<PlatformAdminRequestRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({})
   const [submittingId, setSubmittingId] = useState<string | null>(null)
 
@@ -34,12 +36,14 @@ export default function PlatformAdminRequestsPage() {
 
       if (!result.ok) {
         setError(result.error.message)
+        setInfo(null)
         setLoading(false)
         return
       }
 
       setRequests(result.data)
       setError(null)
+      setInfo(null)
       setLoading(false)
     }
 
@@ -73,6 +77,7 @@ export default function PlatformAdminRequestsPage() {
 
       if (!result.ok) {
         setError(result.error.message)
+        setInfo(null)
         setSubmittingId(null)
         return
       }
@@ -94,6 +99,11 @@ export default function PlatformAdminRequestsPage() {
         ),
       )
       setError(result.data.accessInviteError)
+      setInfo(
+        result.data.accessInviteError
+          ? `Tenant provisioned, but initial invite delivery still needs attention for ${target.requestorEmail}.`
+          : `Tenant provisioned and initial access invite sent to ${target.requestorEmail}.`,
+      )
       setSubmittingId(null)
       return
     }
@@ -104,11 +114,12 @@ export default function PlatformAdminRequestsPage() {
       reviewNotes: reviewNotes[requestId],
     })
 
-    if (!result.ok) {
-      setError(result.error.message)
-      setSubmittingId(null)
-      return
-    }
+      if (!result.ok) {
+        setError(result.error.message)
+        setInfo(null)
+        setSubmittingId(null)
+        return
+      }
 
     const reviewedAt = new Date().toISOString()
     setRequests((current) =>
@@ -124,6 +135,7 @@ export default function PlatformAdminRequestsPage() {
       ),
     )
     setError(null)
+    setInfo(`Request ${status} for ${target.requestorEmail}.`)
     setSubmittingId(null)
   }
 
@@ -141,6 +153,7 @@ export default function PlatformAdminRequestsPage() {
 
     if (!result.ok) {
       setError(result.error.message)
+      setInfo(null)
       setRequests((current) =>
         current.map((item) =>
           item.id === requestId
@@ -167,6 +180,24 @@ export default function PlatformAdminRequestsPage() {
       ),
     )
     setError(null)
+    setInfo(`Initial access invite re-sent to ${target.requestorEmail}.`)
+    setSubmittingId(null)
+  }
+
+  const handleDispatchPendingEmails = async () => {
+    setSubmittingId("dispatch-email-queue")
+    const result = await dispatchPendingNotificationEmails({ limit: 25 })
+
+    if (!result.ok) {
+      setError(result.error.message)
+      setInfo(null)
+      setSubmittingId(null)
+      return
+    }
+
+    const failedCount = result.data.results.filter((item) => item.status === "failed").length
+    setError(failedCount > 0 ? `${failedCount} email notification deliveries failed. Review function logs and event rows.` : null)
+    setInfo(`Processed ${result.data.processed} pending email notification event(s).`)
     setSubmittingId(null)
   }
 
@@ -204,6 +235,11 @@ export default function PlatformAdminRequestsPage() {
           {error}
         </section>
       ) : null}
+      {info ? (
+        <section className="rounded-[22px] border border-[#cfe2ff] bg-[#f6faff] px-4 py-3 text-sm text-[#1553b7]">
+          {info}
+        </section>
+      ) : null}
 
       {loading ? (
         <section className="rounded-[28px] border border-slate-200 bg-white px-5 py-8 text-sm text-slate-500 shadow-sm">
@@ -216,6 +252,18 @@ export default function PlatformAdminRequestsPage() {
           No tenant provisioning requests have been submitted yet.
         </section>
       ) : null}
+
+      <section className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 rounded-full border-slate-200"
+          disabled={submittingId === "dispatch-email-queue"}
+          onClick={() => void handleDispatchPendingEmails()}
+        >
+          Dispatch pending notification emails
+        </Button>
+      </section>
 
       <section className="space-y-4">
         {requests.map((request) => {

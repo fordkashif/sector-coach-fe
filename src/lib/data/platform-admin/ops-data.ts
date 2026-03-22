@@ -230,3 +230,35 @@ export async function getCurrentPlatformAdminIdentity(): Promise<Result<{ email:
 
   return ok({ email: data.email })
 }
+
+export async function dispatchPendingNotificationEmails(params?: {
+  limit?: number
+  eventIds?: string[]
+}): Promise<Result<{ processed: number; results: Array<{ id: string; status: "sent" | "failed"; error?: string }> }>> {
+  const clientResult = requireSupabaseClient("dispatchPendingNotificationEmails")
+  if (!clientResult.ok) return clientResult
+
+  const { data, error } = await clientResult.client.functions.invoke("dispatch-notification-emails", {
+    body: {
+      limit: params?.limit ?? 25,
+      eventIds: params?.eventIds,
+    },
+  })
+
+  if (error) {
+    return err("UNKNOWN", error.message, error)
+  }
+
+  const payload = (data ?? {}) as {
+    processed?: number
+    results?: Array<{ id: string; status: "sent" | "failed"; error?: string }>
+    error?: string
+  }
+
+  if (payload.error) return err("UNKNOWN", payload.error)
+
+  return ok({
+    processed: payload.processed ?? 0,
+    results: payload.results ?? [],
+  })
+}
