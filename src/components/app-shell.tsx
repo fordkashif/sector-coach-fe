@@ -389,7 +389,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem>Profile</DropdownMenuItem>
-                      <DropdownMenuItem>Settings</DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/settings/notifications">Settings</Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onSelect={() => {
                           void handleSignOut()
@@ -610,7 +612,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem>Profile</DropdownMenuItem>
-                    <DropdownMenuItem>Settings</DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/settings/notifications">Settings</Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={() => {
                         void handleSignOut()

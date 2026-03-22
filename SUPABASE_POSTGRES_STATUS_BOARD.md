@@ -32,6 +32,7 @@ Companion plan:
 - `npx playwright test tests/e2e/role-journeys-and-tenancy.spec.ts`: PASS (3/3, March 20, 2026)
 - `npm run test:e2e:supabase`: PASS WITH SKIPS (7 skipped, env-gated suites, March 20, 2026)
 - CI workflow added: `.github/workflows/e2e.yml` (required mock lane + optional secret-gated Supabase lane)
+- Supabase deploy workflow now covers migrations + Edge Function deploys: `.github/workflows/supabase-migrations.yml`
 
 ## Global Gate - Migration Automation
 
@@ -481,6 +482,7 @@ Companion plan:
   - Initial club-admin access invite dispatch is now owned by Supabase Edge Function `platform-admin-send-club-admin-invite` instead of direct browser `signInWithOtp` calls, with server-side platform-admin validation and invite-state updates.
   - Added provider-backed email notification dispatcher Edge Function `dispatch-notification-emails` plus manual platform-admin drain action for pending email `notification_events`, with delivery-attempt/provider tracking fields on notification rows.
   - Added `user_notifications` projection + trigger/backfill so in-app unread/read state is separated from email delivery state; app shell notification drawer now reads `user_notifications` instead of mutating `notification_events` directly.
+  - Added `notification_preferences` plus shared `/settings/notifications` UI; wildcard per-channel preferences are now enforced for in-app projection and email dispatch suppression.
 
 ## Quick Start Prompt
 

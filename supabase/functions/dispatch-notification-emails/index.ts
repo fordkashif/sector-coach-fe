@@ -13,7 +13,9 @@ type DispatchPayload = {
 
 type EmailEventRow = {
   id: string
+  recipient_user_id: string | null
   recipient_email: string | null
+  event_type: string
   subject: string
   body: string | null
   delivery_attempt_count: number
@@ -132,7 +134,7 @@ Deno.serve(async (request) => {
   const limit = Math.max(1, Math.min(payload.limit ?? 25, 100))
   let query = serviceClient
     .from("notification_events")
-    .select("id, recipient_email, subject, body, delivery_attempt_count")
+    .select("id, recipient_user_id, recipient_email, event_type, subject, body, delivery_attempt_count")
     .eq("channel", "email")
     .in("status", ["pending", "failed"])
     .order("created_at", { ascending: true })
@@ -154,6 +156,41 @@ Deno.serve(async (request) => {
   const results: Array<{ id: string; status: "sent" | "failed"; error?: string }> = []
 
   for (const row of rows) {
+    const { data: emailEnabled, error: preferenceError } = await serviceClient.rpc("notification_channel_enabled", {
+      p_channel: "email",
+      p_event_type: row.event_type,
+      p_recipient_user_id: row.recipient_user_id,
+      p_recipient_email: row.recipient_email,
+    })
+
+    if (preferenceError) {
+      await serviceClient
+        .from("notification_events")
+        .update({
+          status: "failed",
+          last_error: preferenceError.message,
+          processing_started_at: null,
+        })
+        .eq("id", row.id)
+
+      results.push({ id: row.id, status: "failed", error: preferenceError.message })
+      continue
+    }
+
+    if (!emailEnabled) {
+      await serviceClient
+        .from("notification_events")
+        .update({
+          status: "suppressed",
+          last_error: "Suppressed by notification preferences.",
+          processing_started_at: null,
+        })
+        .eq("id", row.id)
+
+      results.push({ id: row.id, status: "sent" })
+      continue
+    }
+
     await serviceClient
       .from("notification_events")
       .update({

@@ -1,6 +1,6 @@
 # PaceLab Supabase Environment + Secrets Setup
 
-Last updated: March 20, 2026
+Last updated: March 22, 2026
 
 ## Purpose
 
@@ -34,6 +34,10 @@ Server/CI only (never in browser bundle):
 - `SUPABASE_DB_PASSWORD`
 - `SUPABASE_ACCESS_TOKEN` (if CI uses CLI auth)
 - `SUPABASE_PROJECT_REF`
+- `SUPABASE_URL` (for Edge Functions / CI secret sync)
+- `SUPABASE_ANON_KEY` (for Edge Functions using authenticated user context)
+- `RESEND_API_KEY` (email delivery provider)
+- `NOTIFICATION_FROM_EMAIL` (sender identity for queued emails)
 
 ## Variable Rules
 
@@ -59,6 +63,24 @@ Server/CI only (never in browser bundle):
 - Limit secret access to migration/deploy jobs only.
 - Block secret echo in logs.
 - Rotate keys on environment compromise or team-role changes.
+
+### Edge Function Deployment
+
+- App deployment does not deploy Supabase Edge Functions by default.
+- `.github/workflows/supabase-migrations.yml` now also:
+  - syncs Edge Function secrets
+  - deploys:
+    - `platform-admin-send-club-admin-invite`
+    - `dispatch-notification-emails`
+- Required GitHub environment secrets for this workflow:
+  - `SUPABASE_ACCESS_TOKEN`
+  - `SUPABASE_PROJECT_REF`
+  - `SUPABASE_DB_PASSWORD`
+  - `SUPABASE_URL`
+  - `SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `RESEND_API_KEY`
+  - `NOTIFICATION_FROM_EMAIL`
 
 ## Rotation Policy
 
@@ -86,4 +108,3 @@ Server/CI only (never in browser bundle):
 - [x] Frontend and server variables documented
 - [x] Secret handling and rotation guidance documented
 - [x] Bootstrap steps documented with `.env` template
-

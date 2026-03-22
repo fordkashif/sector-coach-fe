@@ -46,6 +46,30 @@ jobs:
         run: |
           supabase db push --linked
 
+      - name: Sync Edge Function Secrets (dev)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFICATION_FROM_EMAIL: ${{ secrets.NOTIFICATION_FROM_EMAIL }}
+        run: |
+          supabase secrets set \
+            SUPABASE_URL="$SUPABASE_URL" \
+            SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+            RESEND_API_KEY="$RESEND_API_KEY" \
+            NOTIFICATION_FROM_EMAIL="$NOTIFICATION_FROM_EMAIL" \
+            --linked
+
+      - name: Deploy Edge Functions (dev)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy platform-admin-send-club-admin-invite --linked
+          supabase functions deploy dispatch-notification-emails --linked
+
   migrate-prod:
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'prod')
     runs-on: ubuntu-latest
@@ -73,3 +97,27 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase db push --linked
+
+      - name: Sync Edge Function Secrets (prod)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFICATION_FROM_EMAIL: ${{ secrets.NOTIFICATION_FROM_EMAIL }}
+        run: |
+          supabase secrets set \
+            SUPABASE_URL="$SUPABASE_URL" \
+            SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
+            RESEND_API_KEY="$RESEND_API_KEY" \
+            NOTIFICATION_FROM_EMAIL="$NOTIFICATION_FROM_EMAIL" \
+            --linked
+
+      - name: Deploy Edge Functions (prod)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy platform-admin-send-club-admin-invite --linked
+          supabase functions deploy dispatch-notification-emails --linked
