@@ -484,6 +484,7 @@ Companion plan:
   - Added `user_notifications` projection + trigger/backfill so in-app unread/read state is separated from email delivery state; app shell notification drawer now reads `user_notifications` instead of mutating `notification_events` directly.
   - Added `notification_preferences` plus shared `/settings/notifications` UI; wildcard per-channel preferences are now enforced for in-app projection and email dispatch suppression.
   - Extended `/settings/notifications` with category-level overrides and introduced `src/lib/notification-categories.ts`; current mapped family is tenant-provisioning lifecycle notifications.
+  - Added DB-backed coach/athlete invite notification triggers so invite creation and acceptance now emit `notification_events`, and `/settings/notifications` category coverage now includes coach-invites and athlete-invites.
 
 ## Quick Start Prompt
 

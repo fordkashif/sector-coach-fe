@@ -16,4 +16,16 @@ export const NOTIFICATION_PREFERENCE_CATEGORIES: NotificationPreferenceCategory[
       "tenant_provision_request_provisioned",
     ],
   },
+  {
+    key: "coach-invites",
+    title: "Coach invites",
+    description: "Invite intake and acceptance updates for coaches and club-admin staff.",
+    eventTypes: ["coach_invite_created", "coach_invite_accepted"],
+  },
+  {
+    key: "athlete-invites",
+    title: "Athlete invites",
+    description: "Invite-link creation and acceptance updates for coaches and athletes.",
+    eventTypes: ["athlete_invite_created", "athlete_invite_accepted"],
+  },
 ]
