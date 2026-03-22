@@ -49,6 +49,7 @@ jobs:
       - name: Sync Edge Function Secrets (dev)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -61,14 +62,15 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
             RESEND_API_KEY="$RESEND_API_KEY" \
             NOTIFICATION_FROM_EMAIL="$NOTIFICATION_FROM_EMAIL" \
-            --linked
+            --project-ref "$SUPABASE_PROJECT_REF"
 
       - name: Deploy Edge Functions (dev)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
-          supabase functions deploy platform-admin-send-club-admin-invite --linked
-          supabase functions deploy dispatch-notification-emails --linked
+          supabase functions deploy platform-admin-send-club-admin-invite --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy dispatch-notification-emails --project-ref "$SUPABASE_PROJECT_REF"
 
   migrate-prod:
     if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.target_env == 'prod')
@@ -101,6 +103,7 @@ jobs:
       - name: Sync Edge Function Secrets (prod)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -113,11 +116,12 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY="$SUPABASE_SERVICE_ROLE_KEY" \
             RESEND_API_KEY="$RESEND_API_KEY" \
             NOTIFICATION_FROM_EMAIL="$NOTIFICATION_FROM_EMAIL" \
-            --linked
+            --project-ref "$SUPABASE_PROJECT_REF"
 
       - name: Deploy Edge Functions (prod)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
-          supabase functions deploy platform-admin-send-club-admin-invite --linked
-          supabase functions deploy dispatch-notification-emails --linked
+          supabase functions deploy platform-admin-send-club-admin-invite --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy dispatch-notification-emails --project-ref "$SUPABASE_PROJECT_REF"
