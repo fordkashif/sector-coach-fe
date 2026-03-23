@@ -7,7 +7,7 @@ import {
   getCoachDashboardSnapshotForCurrentUser,
   type CoachDashboardSnapshot,
 } from "@/lib/data/coach/dashboard-data"
-import { mockAthletes, type LogEntry } from "@/lib/mock-data"
+import type { Athlete, LogEntry } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { InvalidEntityPage } from "@/pages/invalid-entity"
 
@@ -19,6 +19,7 @@ export default function CoachAthleteDetailPage() {
   const [backendSnapshot, setBackendSnapshot] = useState<CoachDashboardSnapshot | null>(null)
   const [backendLogs, setBackendLogs] = useState<LogEntry[]>([])
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [mockAthletes, setMockAthletes] = useState<Athlete[]>([])
 
   useEffect(() => {
     if (backendMode !== "supabase") return
@@ -48,6 +49,21 @@ export default function CoachAthleteDetailPage() {
       cancelled = true
     }
   }, [athleteId, backendMode, coachTeamId, role])
+
+  useEffect(() => {
+    if (backendMode === "supabase") return
+    let cancelled = false
+
+    void import("@/lib/mock-data").then((module) => {
+      if (!cancelled) {
+        setMockAthletes(module.mockAthletes)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
 
   const athletesSource = backendMode === "supabase" ? (backendSnapshot?.athletes ?? []) : mockAthletes
   const athlete = athletesSource.find((item) => item.id === athleteId)

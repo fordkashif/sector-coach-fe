@@ -21,10 +21,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  mockLogs,
-  mockPRs,
-  mockTestWeekResults,
-  mockTrendSeries,
   type Athlete,
   type LogEntry,
   type PR,
@@ -78,6 +74,12 @@ type CoachAthleteDetailContentProps = {
 export function CoachAthleteDetailContent({ athlete, data }: CoachAthleteDetailContentProps) {
   const [logType, setLogType] = useState<LogTypeFilter>("All")
   const [dateRange, setDateRange] = useState("Last 7 days")
+  const [mockData, setMockData] = useState<{
+    logs: LogEntry[]
+    prs: PR[]
+    tests: TestWeekResult[]
+    trendSeries: Record<string, TrendPoint[]>
+  }>({ logs: [], prs: [], tests: [], trendSeries: {} })
 
   useEffect(() => {
     ;(window as typeof window & { __PACELAB_MOBILE_DETAIL_MODE?: boolean }).__PACELAB_MOBILE_DETAIL_MODE = true
@@ -88,9 +90,29 @@ export function CoachAthleteDetailContent({ athlete, data }: CoachAthleteDetailC
     }
   }, [])
 
-  const athletePrs = data?.prs ?? mockPRs.filter((pr) => pr.athleteId === athlete.id)
+  useEffect(() => {
+    if (data) return
+    let cancelled = false
+
+    void import("@/lib/mock-data").then((module) => {
+      if (!cancelled) {
+        setMockData({
+          logs: module.mockLogs,
+          prs: module.mockPRs,
+          tests: module.mockTestWeekResults,
+          trendSeries: module.mockTrendSeries,
+        })
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [data])
+
+  const athletePrs = data?.prs ?? mockData.prs.filter((pr) => pr.athleteId === athlete.id)
   const topPrs = athletePrs.slice(0, 4)
-  const athleteLogs = data?.logs ?? mockLogs.filter((log) => log.athleteId === athlete.id)
+  const athleteLogs = data?.logs ?? mockData.logs.filter((log) => log.athleteId === athlete.id)
 
   const filteredLogs = useMemo(() => {
     if (logType === "All") return athleteLogs
@@ -102,8 +124,8 @@ export function CoachAthleteDetailContent({ athlete, data }: CoachAthleteDetailC
     return acc
   }, {})
 
-  const testWeek = data?.testWeek ?? mockTestWeekResults.find((row) => row.athleteId === athlete.id) ?? null
-  const trend = data?.trend ?? mockTrendSeries[athlete.id] ?? []
+  const testWeek = data?.testWeek ?? mockData.tests.find((row) => row.athleteId === athlete.id) ?? null
+  const trend = data?.trend ?? mockData.trendSeries[athlete.id] ?? []
   const latestReadinessDate = trend[trend.length - 1]?.date ?? athlete.lastWellness
   const totalLogs = athleteLogs.length
   const logMixRows = Object.entries(logSummary)

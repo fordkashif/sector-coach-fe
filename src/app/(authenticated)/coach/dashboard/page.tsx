@@ -13,7 +13,7 @@ import { Link } from "react-router-dom"
 import { BarChart, LineChart } from "@mui/x-charts"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
 import { Button } from "@/components/ui/button"
-import { mockAthletes, mockPRs, mockTeams, mockTestWeekResults, mockTrendSeries } from "@/lib/mock-data"
+import type { Athlete, PR, Team, TestWeekResult, TrendPoint } from "@/lib/mock-data"
 import {
   getCoachDashboardSnapshotForCurrentUser,
   type CoachDashboardSnapshot,
@@ -67,6 +67,13 @@ export default function CoachDashboardPage() {
   const coachTeamId = getCookieValue(COACH_TEAM_COOKIE)
   const [backendSnapshot, setBackendSnapshot] = useState<CoachDashboardSnapshot | null>(null)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [mockData, setMockData] = useState<{
+    athletes: Athlete[]
+    prs: PR[]
+    teams: Team[]
+    tests: TestWeekResult[]
+    trendSeries: Record<string, TrendPoint[]>
+  }>({ athletes: [], prs: [], teams: [], tests: [], trendSeries: {} })
 
   useEffect(() => {
     if (backendMode !== "supabase") return
@@ -89,11 +96,32 @@ export default function CoachDashboardPage() {
     }
   }, [backendMode, coachTeamId, role])
 
-  const sourceAthletes = backendMode === "supabase" ? (backendSnapshot?.athletes ?? []) : mockAthletes
-  const sourcePrs = backendMode === "supabase" ? (backendSnapshot?.prs ?? []) : mockPRs
-  const sourceTests = backendMode === "supabase" ? (backendSnapshot?.tests ?? []) : mockTestWeekResults
-  const sourceTeams = backendMode === "supabase" ? (backendSnapshot?.teams ?? []) : mockTeams
-  const sourceTrends = backendMode === "supabase" ? (backendSnapshot?.trendSeries ?? {}) : mockTrendSeries
+  useEffect(() => {
+    if (backendMode === "supabase") return
+    let cancelled = false
+
+    void import("@/lib/mock-data").then((module) => {
+      if (!cancelled) {
+        setMockData({
+          athletes: module.mockAthletes,
+          prs: module.mockPRs,
+          teams: module.mockTeams,
+          tests: module.mockTestWeekResults,
+          trendSeries: module.mockTrendSeries,
+        })
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
+
+  const sourceAthletes = backendMode === "supabase" ? (backendSnapshot?.athletes ?? []) : mockData.athletes
+  const sourcePrs = backendMode === "supabase" ? (backendSnapshot?.prs ?? []) : mockData.prs
+  const sourceTests = backendMode === "supabase" ? (backendSnapshot?.tests ?? []) : mockData.tests
+  const sourceTeams = backendMode === "supabase" ? (backendSnapshot?.teams ?? []) : mockData.teams
+  const sourceTrends = backendMode === "supabase" ? (backendSnapshot?.trendSeries ?? {}) : mockData.trendSeries
 
   const scopedAthletes =
     role === "coach" && coachTeamId ? sourceAthletes.filter((athlete) => athlete.teamId === coachTeamId) : sourceAthletes

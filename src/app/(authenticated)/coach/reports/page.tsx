@@ -14,7 +14,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { BarChart } from "@mui/x-charts"
 import { Button } from "@/components/ui/button"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
-import { mockAthletes, mockPRs, mockTeams, mockWellness } from "@/lib/mock-data"
+import type { Athlete, PR, Team, WellnessEntry } from "@/lib/mock-data"
 import {
   getCoachDashboardSnapshotForCurrentUser,
   getCoachWellnessEntriesForCurrentUser,
@@ -58,8 +58,14 @@ export default function CoachReportsPage() {
   const role = getCookieValue(ROLE_COOKIE)
   const coachTeamId = getCookieValue(COACH_TEAM_COOKIE)
   const [backendSnapshot, setBackendSnapshot] = useState<CoachDashboardSnapshot | null>(null)
-  const [backendWellness, setBackendWellness] = useState<typeof mockWellness>([])
+  const [backendWellness, setBackendWellness] = useState<WellnessEntry[]>([])
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [mockData, setMockData] = useState<{
+    athletes: Athlete[]
+    prs: PR[]
+    teams: Team[]
+    wellness: WellnessEntry[]
+  }>({ athletes: [], prs: [], teams: [], wellness: [] })
 
   useEffect(() => {
     if (backendMode !== "supabase") return
@@ -92,10 +98,30 @@ export default function CoachReportsPage() {
     }
   }, [backendMode, coachTeamId, role])
 
-  const sourceAthletes = backendMode === "supabase" ? (backendSnapshot?.athletes ?? []) : mockAthletes
-  const sourcePrs = backendMode === "supabase" ? (backendSnapshot?.prs ?? []) : mockPRs
-  const sourceTeams = backendMode === "supabase" ? (backendSnapshot?.teams ?? []) : mockTeams
-  const sourceWellness = backendMode === "supabase" ? backendWellness : mockWellness
+  useEffect(() => {
+    if (backendMode === "supabase") return
+    let cancelled = false
+
+    void import("@/lib/mock-data").then((module) => {
+      if (!cancelled) {
+        setMockData({
+          athletes: module.mockAthletes,
+          prs: module.mockPRs,
+          teams: module.mockTeams,
+          wellness: module.mockWellness,
+        })
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [backendMode])
+
+  const sourceAthletes = backendMode === "supabase" ? (backendSnapshot?.athletes ?? []) : mockData.athletes
+  const sourcePrs = backendMode === "supabase" ? (backendSnapshot?.prs ?? []) : mockData.prs
+  const sourceTeams = backendMode === "supabase" ? (backendSnapshot?.teams ?? []) : mockData.teams
+  const sourceWellness = backendMode === "supabase" ? backendWellness : mockData.wellness
   const scopedAthletes =
     role === "coach" && coachTeamId ? sourceAthletes.filter((athlete) => athlete.teamId === coachTeamId) : sourceAthletes
   const athleteIds = new Set(scopedAthletes.map((athlete) => athlete.id))
