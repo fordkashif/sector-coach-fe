@@ -28,6 +28,8 @@ Companion runbook:
   - Result: `3 passed` (March 20, 2026)
   - Command: `npx playwright test -c playwright.supabase.config.ts tests/e2e/supabase/coach-builder.spec.ts`
   - Result: `3 skipped` (env/auth-state gated, March 21, 2026)
+  - Command: `npx playwright test -c playwright.supabase.config.ts tests/e2e/supabase/club-admin.spec.ts --project=supabase`
+  - Result: `5 skipped` (club-admin auth-state gated, March 23, 2026)
 
 ## Commands
 
@@ -81,11 +83,25 @@ npx playwright show-report
 | TW2 | Supabase Auth Fixture Foundation | `[~]` | Storage states for role+tenant accounts generated and reusable |
 | TW3 | Supabase Tenant Isolation Assertions | `[~]` | Negative visibility tests pass on real DB/RLS |
 | TW4 | Critical Journey Regression Pack | `[~]` | Admin->Coach->Athlete publish/log/review flows covered in CI |
-| TW5 | Reporting + Audit E2E | `[ ]` | Export actions + audit row assertions active |
+| TW5 | Reporting + Audit E2E | `[~]` | Export actions + audit row assertions active |
 
 ## Detailed Backlog
 
 ### TW4 - Critical Journey Regression Pack
+
+#### TST-405 - Club-admin route smoke + export audit flow
+- Status: `[x] DONE`
+- Notes:
+  - Added Supabase-mode smoke coverage for:
+    - `/club-admin/dashboard`
+    - `/club-admin/reports`
+    - `/club-admin/audit`
+  - Added export regression:
+    - `Users CSV` download from reports
+    - audit visibility for `club-users.csv`
+  - Uses club-admin storage state and skips cleanly when auth setup/env is unavailable.
+  - Evidence:
+    - `tests/e2e/supabase/club-admin.spec.ts`
 
 #### TST-401 - Coach builder Supabase-mode route smoke
 - Status: `[x] DONE`
@@ -228,6 +244,7 @@ npx playwright show-report
 - `[~]` Current run behavior: clean skip when required env vars are missing.
 - `[~]` Club-admin tenant isolation spec scaffolded (tenant B env-gated).
 - `[~]` Coach and athlete tenant isolation specs scaffolded (tenant B env-gated).
+- `[x]` Club-admin route smoke + report export audit spec added.
 - `[x]` CI split lanes added (required mock + optional secret-gated Supabase).
 - `[ ]` Pending first fully-configured green run with real fixture accounts.
 
