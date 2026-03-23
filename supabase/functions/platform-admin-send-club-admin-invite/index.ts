@@ -62,9 +62,8 @@ Deno.serve(async (request) => {
     },
   })
 
-  const token = authorization.replace(/^Bearer\s+/i, "").trim()
   const [{ data: authData, error: authError }, payloadResult] = await Promise.all([
-    serviceClient.auth.getUser(token),
+    userClient.auth.getUser(),
     request.json() as Promise<InvitePayload>,
   ])
 
