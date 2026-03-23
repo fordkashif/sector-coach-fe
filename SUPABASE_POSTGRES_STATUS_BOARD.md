@@ -28,6 +28,7 @@ Companion plan:
 - Coach teams hardening update: `/coach/teams`, `/coach/teams/[teamId]`, and `team-detail-content` no longer statically import mock datasets on the Supabase route path; mock team data is lazy-loaded only for mock mode.
 - Coach operational-route hardening update: `/coach/dashboard`, `/coach/reports`, `/coach/athletes/[athleteId]`, and `athlete-detail-content` no longer statically import runtime mock datasets on the Supabase route path; mock fallback data is lazy-loaded only for mock mode.
 - Athlete invite-join hardening update: `join-team-form` no longer statically imports `mockTeams` on the Supabase route path; mock team fallback data is lazy-loaded only for mock mode.
+- Club-admin support-surface hardening update: `/club-admin/dashboard` and `/club-admin/reports` no longer statically import runtime mock datasets on the Supabase route path; reports also lazy-loads the mock audit logger only for mock mode.
 
 ## Verification Snapshot
 

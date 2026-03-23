@@ -5,14 +5,13 @@ import { BarChart, PieChart } from "@mui/x-charts"
 import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { loadClubInvites, loadClubTeams, loadClubUsers } from "../state"
-import { mockAthletes, mockPRs } from "@/lib/mock-data"
+import type { Athlete, PR } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import {
   getClubAdminOpsSnapshot,
   getClubAdminReportSnapshot,
   insertAuditEvent,
 } from "@/lib/data/club-admin/ops-data"
-import { logAuditEvent } from "@/lib/mock-audit"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { FileDownloadIcon, PrinterIcon } from "@hugeicons/core-free-icons"
 import { cn } from "@/lib/utils"
@@ -60,18 +59,23 @@ function downloadCsv(filename: string, rows: string[][]) {
 export default function ClubAdminReportsPage() {
   const backendMode = getBackendMode()
   const isSupabaseMode = backendMode === "supabase"
+  type AthleteRow = {
+    id: string
+    name: string
+    readiness: "green" | "yellow" | "red"
+    adherenceLabel: string
+  }
+  const [mockAuditLogger, setMockAuditLogger] = useState<((event: {
+    actor: string
+    action: string
+    target: string
+    detail?: string
+  }) => void) | null>(null)
   const [users, setUsers] = useState(() => (isSupabaseMode ? [] : loadClubUsers()))
   const [teams, setTeams] = useState(() => (isSupabaseMode ? [] : loadClubTeams()))
   const [invites, setInvites] = useState(() => (isSupabaseMode ? [] : loadClubInvites()))
-  const [athleteRows, setAthleteRows] = useState(() =>
-    isSupabaseMode
-      ? []
-      : mockAthletes.map((athlete) => ({
-          id: athlete.id,
-          name: athlete.name,
-          readiness: athlete.readiness,
-          adherenceLabel: `${athlete.adherence}%`,
-        })),
+  const [athleteRows, setAthleteRows] = useState<AthleteRow[]>(() =>
+    [],
   )
   const [prRows, setPrRows] = useState<Array<{
     athleteId: string
@@ -80,15 +84,7 @@ export default function ClubAdminReportsPage() {
     category: string
     measuredOn: string
   }>>(() =>
-    isSupabaseMode
-      ? []
-      : mockPRs.map((pr) => ({
-          athleteId: pr.athleteId,
-          event: pr.event,
-          bestValue: pr.bestValue,
-          category: pr.category,
-          measuredOn: pr.date,
-        })),
+    [],
   )
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
@@ -156,13 +152,45 @@ export default function ClubAdminReportsPage() {
     }
   }, [isSupabaseMode])
 
+  useEffect(() => {
+    if (isSupabaseMode) return
+    let cancelled = false
+
+    void Promise.all([import("@/lib/mock-data"), import("@/lib/mock-audit")]).then(([mockData, mockAudit]) => {
+      if (!cancelled) {
+        setAthleteRows(
+          mockData.mockAthletes.map((athlete: Athlete) => ({
+            id: athlete.id,
+            name: athlete.name,
+            readiness: athlete.readiness,
+            adherenceLabel: `${athlete.adherence}%`,
+          })),
+        )
+        setPrRows(
+          mockData.mockPRs.map((pr: PR) => ({
+            athleteId: pr.athleteId,
+            event: pr.event,
+            bestValue: pr.bestValue,
+            category: pr.category,
+            measuredOn: pr.date,
+          })),
+        )
+        setMockAuditLogger(() => mockAudit.logAuditEvent)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
+
   const emitAudit = async (action: string, target: string, detail?: string) => {
     if (backendMode === "supabase") {
       const result = await insertAuditEvent({ action, target, detail })
       if (!result.ok) setBackendError((current) => current ?? result.error.message)
       return
     }
-    logAuditEvent({ actor: "club-admin", action, target, detail })
+    mockAuditLogger?.({ actor: "club-admin", action, target, detail })
   }
 
   const exportClubUsers = async () => {

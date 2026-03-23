@@ -9,7 +9,7 @@ import {
   getClubAdminOpsSnapshot,
   getClubAdminReportSnapshot,
 } from "@/lib/data/club-admin/ops-data"
-import { mockAthletes, type EventGroup } from "@/lib/mock-data"
+import type { EventGroup } from "@/lib/mock-data"
 import type {
   AccountRequest,
   ClubTeam,
@@ -68,12 +68,7 @@ export default function ClubAdminDashboardPage() {
     isSupabaseMode ? [] : loadClubAccountRequests(),
   )
   const [athleteRows, setAthleteRows] = useState<Array<{ readiness: "green" | "yellow" | "red"; adherence: number }>>(() =>
-    isSupabaseMode
-      ? []
-      : mockAthletes.map((athlete) => ({
-          readiness: athlete.readiness,
-          adherence: athlete.adherence,
-        })),
+    [],
   )
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
@@ -161,6 +156,26 @@ export default function ClubAdminDashboardPage() {
     }
 
     void loadSnapshot()
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
+
+  useEffect(() => {
+    if (isSupabaseMode) return
+    let cancelled = false
+
+    void import("@/lib/mock-data").then((module) => {
+      if (!cancelled) {
+        setAthleteRows(
+          module.mockAthletes.map((athlete) => ({
+            readiness: athlete.readiness,
+            adherence: athlete.adherence,
+          })),
+        )
+      }
+    })
+
     return () => {
       cancelled = true
     }
