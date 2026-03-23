@@ -16,6 +16,16 @@ test("generate Supabase storage states for e2e roles", async ({ browser, baseURL
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY as string
   const appBaseUrl = baseURL ?? "http://127.0.0.1:3008"
 
+  if (hasRoleCredential("platformAdmin")) {
+    await writeSupabaseStorageStateForRole({
+      browser,
+      baseUrl: appBaseUrl,
+      supabaseUrl,
+      anonKey,
+      role: "platformAdmin",
+    })
+  }
+
   await writeSupabaseStorageStateForRole({
     browser,
     baseUrl: appBaseUrl,

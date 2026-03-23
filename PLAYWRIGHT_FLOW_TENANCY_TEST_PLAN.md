@@ -95,6 +95,16 @@ npx playwright show-report
   - Evidence:
     - `tests/e2e/supabase/coach-builder.spec.ts`
 
+#### TST-402 - Platform-admin route smoke
+- Status: `[x] DONE`
+- Notes:
+  - Added Supabase-mode route smoke for platform-admin dashboard, request queue, and audit surface.
+  - Uses optional platform-admin storage state and skips cleanly when platform-admin creds are not configured.
+  - Evidence:
+    - `tests/e2e/supabase/platform-admin.spec.ts`
+    - `tests/e2e/setup/supabase-auth.setup.ts`
+    - `tests/e2e/helpers/supabase-auth.ts`
+
 ### TW1 - Mock Baseline Stabilization
 
 #### TST-101 - Shared role seeding helper
@@ -220,6 +230,10 @@ npx playwright show-report
   - Added Supabase coach builder smoke spec:
     - `tests/e2e/supabase/coach-builder.spec.ts`
   - Verified targeted run command completes and skips safely when env/auth fixtures are not present.
+- March 22, 2026:
+  - Added Supabase platform-admin smoke spec:
+    - `tests/e2e/supabase/platform-admin.spec.ts`
+  - Extended auth-state setup to generate optional `playwright/.auth/platform-admin.json` when platform-admin e2e credentials are configured.
 
 ## Exit Criteria
 

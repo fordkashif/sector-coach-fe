@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises"
 import { dirname } from "node:path"
 
 export type SupabaseRoleKey =
+  | "platformAdmin"
   | "clubAdmin"
   | "coach"
   | "athlete"
@@ -37,6 +38,12 @@ const roleEnvMap: Record<
   SupabaseRoleKey,
   { email: string; password: string; storageStatePath: string; requiredForBaseSetup: boolean }
 > = {
+  platformAdmin: {
+    email: "PW_SUPABASE_PLATFORM_ADMIN_EMAIL",
+    password: "PW_SUPABASE_PLATFORM_ADMIN_PASSWORD",
+    storageStatePath: "playwright/.auth/platform-admin.json",
+    requiredForBaseSetup: false,
+  },
   clubAdmin: {
     email: "PW_SUPABASE_CLUB_ADMIN_EMAIL",
     password: "PW_SUPABASE_CLUB_ADMIN_PASSWORD",
