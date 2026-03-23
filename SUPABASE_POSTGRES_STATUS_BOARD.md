@@ -445,6 +445,7 @@ Companion plan:
 - `[ ]` Tenant leakage risk
 - `[ ]` Mixed-source UX drift during staged migration
 - `[ ]` Query performance regressions under real volume
+- `[ ]` Billing may be misunderstood as production-ready before provider integration is implemented
 
 ## Decisions Log
 
@@ -490,6 +491,7 @@ Companion plan:
   - Added `/platform-admin/audit` plus Supabase-backed platform audit reads so platform admins now have a dedicated system-level audit surface alongside the request queue.
   - Added `/platform-admin/dashboard` as the platform-admin landing page and updated shell navigation/redirects so the admin role no longer starts on a deep link.
   - Added platform-admin CSV/PDF export actions for request queue and platform audit views, with backend logging through `log_platform_admin_export(...)` into `platform_audit_events`.
+  - Explicitly locked the current system boundary: all operational app flows are now expected to be real in `supabase` mode, and provider-backed billing is the only intentional remaining stub. `billing_profiles` is temporary app-owned config, not a real subscription authority.
 
 ## Quick Start Prompt
 

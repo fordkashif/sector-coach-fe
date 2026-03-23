@@ -117,6 +117,14 @@ npx playwright show-report
   - Evidence:
     - `tests/e2e/supabase/platform-admin.spec.ts`
 
+#### TST-404 - Platform-admin export audit flow
+- Status: `[x] DONE`
+- Notes:
+  - Added Supabase-mode export coverage for request-queue CSV download.
+  - Verifies the export action is recorded back into `platform_audit_events`.
+  - Evidence:
+    - `tests/e2e/supabase/platform-admin.spec.ts`
+
 ### TW1 - Mock Baseline Stabilization
 
 #### TST-101 - Shared role seeding helper
@@ -247,6 +255,7 @@ npx playwright show-report
     - `tests/e2e/supabase/platform-admin.spec.ts`
   - Extended auth-state setup to generate optional `playwright/.auth/platform-admin.json` when platform-admin e2e credentials are configured.
   - Expanded platform-admin spec to cover public request submission -> platform-admin review -> platform audit verification.
+  - Expanded platform-admin spec to cover request-queue CSV export plus audit-log verification for the export action.
 
 ## Exit Criteria
 

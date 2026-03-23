@@ -94,3 +94,25 @@ test("platform admin can review a newly submitted tenant request and see it in p
 
   await adminContext.close()
 })
+
+test("platform admin request queue export is logged in platform audit", async ({ browser }) => {
+  const storageStatePath = "playwright/.auth/platform-admin.json"
+  test.skip(!(await fileExists(storageStatePath)), `Missing storage state: ${storageStatePath}`)
+
+  const adminContext = await browser.newContext({ storageState: storageStatePath, acceptDownloads: true })
+  const requestsPage = await adminContext.newPage()
+
+  await requestsPage.goto("/platform-admin/requests")
+  const downloadPromise = requestsPage.waitForEvent("download")
+  await requestsPage.getByRole("button", { name: "Export CSV" }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe("platform-admin-request-queue.csv")
+
+  const auditPage = await adminContext.newPage()
+  await auditPage.goto("/platform-admin/audit")
+  await auditPage.getByPlaceholder("Search audit trail").fill("platform_audit_export_csv")
+  await expect(auditPage.locator("body")).toContainText("platform audit export csv")
+  await expect(auditPage.locator("body")).toContainText("request-queue")
+
+  await adminContext.close()
+})
