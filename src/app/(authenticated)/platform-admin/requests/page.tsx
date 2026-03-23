@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
   approveAndProvisionTenantRequest,
@@ -25,6 +26,8 @@ export default function PlatformAdminRequestsPage() {
   const [info, setInfo] = useState<string | null>(null)
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({})
   const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<PlatformAdminRequestRecord["status"] | "all">("all")
 
   useEffect(() => {
     let cancelled = false
@@ -60,6 +63,28 @@ export default function PlatformAdminRequestsPage() {
     const inviteReady = requests.filter((item) => Boolean(item.accessInviteSentAt)).length
     return { pending, approved, provisioned, inviteReady }
   }, [requests])
+
+  const filteredRequests = useMemo(() => {
+    const query = search.trim().toLowerCase()
+
+    return requests.filter((item) => {
+      if (statusFilter !== "all" && item.status !== statusFilter) return false
+      if (!query) return true
+
+      return [
+        item.organizationName,
+        item.requestorName,
+        item.requestorEmail,
+        item.requestedPlan,
+        item.notes ?? "",
+        item.reviewNotes ?? "",
+        item.provisionedTenantId ?? "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    })
+  }, [requests, search, statusFilter])
 
   const handleReview = async (requestId: string, status: "approved" | "rejected") => {
     const target = requests.find((item) => item.id === requestId)
@@ -254,19 +279,58 @@ export default function PlatformAdminRequestsPage() {
       ) : null}
 
       <section className="flex justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 rounded-full border-slate-200"
-          disabled={submittingId === "dispatch-email-queue"}
-          onClick={() => void handleDispatchPendingEmails()}
-        >
-          Dispatch pending notification emails
-        </Button>
+        <div className="flex w-full flex-col gap-3 rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Queue filters</h2>
+              <p className="text-sm text-slate-500">Search by organization, requestor, plan, or tenant id, then narrow the queue by status.</p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 rounded-full border-slate-200"
+              disabled={submittingId === "dispatch-email-queue"}
+              onClick={() => void handleDispatchPendingEmails()}
+            >
+              Dispatch pending notification emails
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search request queue"
+              className="h-11 rounded-full border-slate-200 bg-slate-50 lg:max-w-md"
+            />
+            <div className="flex flex-wrap gap-2">
+              {([
+                ["all", "All"],
+                ["pending", "Pending"],
+                ["approved", "Approved"],
+                ["rejected", "Rejected"],
+                ["cancelled", "Cancelled"],
+              ] as const).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-10 rounded-full border-slate-200 px-4",
+                    statusFilter === value && "border-[#1368ff] bg-[#eef5ff] text-[#1368ff]",
+                  )}
+                  onClick={() => setStatusFilter(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="space-y-4">
-        {requests.map((request) => {
+        {filteredRequests.map((request) => {
           const isPending = request.status === "pending"
           const isSubmitting = submittingId === request.id
 

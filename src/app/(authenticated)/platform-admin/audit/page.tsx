@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { getPlatformAuditEvents, type PlatformAuditEventRecord } from "@/lib/data/platform-admin/ops-data"
 
@@ -26,6 +27,7 @@ export default function PlatformAdminAuditPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState("")
+  const [actionFilter, setActionFilter] = useState<"all" | "tenant_provision_request_submitted" | "tenant_provision_request_reviewed" | "tenant_provision_request_provisioned">("all")
 
   useEffect(() => {
     let cancelled = false
@@ -54,10 +56,12 @@ export default function PlatformAdminAuditPage() {
 
   const filteredEvents = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return events
 
-    return events.filter((event) =>
-      [
+    return events.filter((event) => {
+      if (actionFilter !== "all" && event.action !== actionFilter) return false
+      if (!query) return true
+
+      return [
         event.action,
         event.target,
         event.actorEmail ?? "",
@@ -67,9 +71,9 @@ export default function PlatformAdminAuditPage() {
       ]
         .join(" ")
         .toLowerCase()
-        .includes(query),
-    )
-  }, [events, search])
+        .includes(query)
+    })
+  }, [events, search, actionFilter])
 
   const summary = useMemo(() => {
     return {
@@ -116,17 +120,41 @@ export default function PlatformAdminAuditPage() {
       ) : null}
 
       <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3">
           <div>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Audit feed</h2>
             <p className="text-sm text-slate-500">Search by action, email, target, or request metadata.</p>
           </div>
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search audit trail"
-            className="h-11 w-full rounded-full border-slate-200 bg-slate-50 sm:max-w-sm"
-          />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search audit trail"
+              className="h-11 w-full rounded-full border-slate-200 bg-slate-50 lg:max-w-sm"
+            />
+            <div className="flex flex-wrap gap-2">
+              {([
+                ["all", "All"],
+                ["tenant_provision_request_submitted", "Submitted"],
+                ["tenant_provision_request_reviewed", "Reviewed"],
+                ["tenant_provision_request_provisioned", "Provisioned"],
+              ] as const).map(([value, label]) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant="outline"
+                  className={
+                    actionFilter === value
+                      ? "h-10 rounded-full border-[#0f9b63] bg-emerald-50 px-4 text-emerald-700"
+                      : "h-10 rounded-full border-slate-200 px-4"
+                  }
+                  onClick={() => setActionFilter(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
