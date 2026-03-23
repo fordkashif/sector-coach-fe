@@ -73,6 +73,11 @@ function requireSupabaseClient(operation: string): ClientResolution {
   return { ok: true, client }
 }
 
+function getEmailRedirectUrl() {
+  if (typeof window === "undefined") return undefined
+  return `${window.location.origin}/login`
+}
+
 async function getCurrentClubAdminContext(client: SupabaseClient): Promise<Result<ClubAdminContext>> {
   const { data: authSession } = await client.auth.getSession()
   const userId = authSession.session?.user.id
@@ -288,6 +293,7 @@ export async function createUserProvisioningInvite(params: {
   const otpResult = await clientResult.client.auth.signInWithOtp({
     email: inviteEmail,
     options: {
+      emailRedirectTo: getEmailRedirectUrl(),
       data: {
         tenant_id: contextResult.data.tenantId,
         role: params.role,

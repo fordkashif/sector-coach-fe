@@ -12,6 +12,18 @@ type InvitePayload = {
   tenantId?: string
   requestorEmail?: string
   requestorName?: string
+  appBaseUrl?: string
+}
+
+function normalizeRedirectBaseUrl(value: string | null | undefined) {
+  const candidate = value?.trim()
+  if (!candidate) return null
+
+  try {
+    return new URL(candidate).origin
+  } catch {
+    return null
+  }
 }
 
 Deno.serve(async (request) => {
@@ -79,6 +91,9 @@ Deno.serve(async (request) => {
   const tenantId = payload.tenantId?.trim()
   const requestorEmail = payload.requestorEmail?.trim().toLowerCase()
   const requestorName = payload.requestorName?.trim()
+  const redirectBaseUrl =
+    normalizeRedirectBaseUrl(payload.appBaseUrl) ??
+    normalizeRedirectBaseUrl(Deno.env.get("PUBLIC_APP_URL"))
 
   if (!requestId || !tenantId || !requestorEmail || !requestorName) {
     return new Response(JSON.stringify({ error: "Missing required payload fields." }), {
@@ -110,6 +125,7 @@ Deno.serve(async (request) => {
   const otpResult = await otpClient.auth.signInWithOtp({
     email: requestorEmail,
     options: {
+      emailRedirectTo: redirectBaseUrl ? `${redirectBaseUrl}/login` : undefined,
       data: {
         tenant_id: tenantId,
         role: "club-admin",

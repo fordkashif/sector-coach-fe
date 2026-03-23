@@ -169,6 +169,7 @@ async function invokePlatformAdminInviteFunction(
     requestorEmail: string
     requestorName: string
     tenantId: string
+    appBaseUrl: string | null
   },
 ): Promise<Result<{ sentAt: string }>> {
   const { data, error } = await client.functions.invoke("platform-admin-send-club-admin-invite", {
@@ -203,6 +204,7 @@ export async function sendInitialClubAdminAccessInvite(params: {
     requestorEmail: params.requestorEmail.trim().toLowerCase(),
     requestorName: params.requestorName.trim(),
     tenantId: params.tenantId,
+    appBaseUrl: typeof window === "undefined" ? null : window.location.origin,
   })
 
   if (!inviteResult.ok) return inviteResult
