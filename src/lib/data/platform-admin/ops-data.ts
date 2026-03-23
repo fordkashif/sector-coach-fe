@@ -212,6 +212,40 @@ export async function sendInitialClubAdminAccessInvite(params: {
   return ok({ sentAt: inviteResult.data.sentAt })
 }
 
+export async function previewInitialClubAdminAccessInvite(params: {
+  requestId: string
+  requestorEmail: string
+  requestorName: string
+  tenantId: string
+}): Promise<Result<{ actionLink: string }>> {
+  const clientResult = requireSupabaseClient("previewInitialClubAdminAccessInvite")
+  if (!clientResult.ok) return clientResult
+
+  const { data, error } = await clientResult.client.functions.invoke("platform-admin-preview-club-admin-invite", {
+    body: {
+      requestId: params.requestId,
+      requestorEmail: params.requestorEmail.trim().toLowerCase(),
+      requestorName: params.requestorName.trim(),
+      tenantId: params.tenantId,
+      appBaseUrl: typeof window === "undefined" ? null : window.location.origin,
+    },
+  })
+
+  if (error) {
+    const contextualMessage =
+      typeof (error as { context?: { json?: { error?: string } } }).context?.json?.error === "string"
+        ? (error as { context?: { json?: { error?: string } } }).context!.json!.error!
+        : error.message
+    return err("UNKNOWN", contextualMessage, error)
+  }
+
+  const response = (data ?? {}) as { actionLink?: string; error?: string }
+  if (response.error) return err("UNKNOWN", response.error)
+  if (!response.actionLink) return err("UNKNOWN", "Preview function did not return an action link.")
+
+  return ok({ actionLink: response.actionLink })
+}
+
 export async function approveAndProvisionTenantRequest(params: {
   requestId: string
   requestorEmail: string

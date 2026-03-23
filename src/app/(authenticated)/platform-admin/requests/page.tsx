@@ -9,6 +9,7 @@ import {
   dispatchPendingNotificationEmails,
   getPlatformAdminRequestQueue,
   logPlatformAdminExport,
+  previewInitialClubAdminAccessInvite,
   reviewTenantProvisionRequest,
   sendInitialClubAdminAccessInvite,
   type PlatformAdminRequestRecord,
@@ -40,6 +41,9 @@ export default function PlatformAdminRequestsPage() {
   const [submittingId, setSubmittingId] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<PlatformAdminRequestRecord["status"] | "all">("all")
+  const isLocalPreviewEnabled =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
 
   useEffect(() => {
     let cancelled = false
@@ -218,6 +222,37 @@ export default function PlatformAdminRequestsPage() {
     )
     setError(null)
     setInfo(`Initial access invite re-sent to ${target.requestorEmail}.`)
+    setSubmittingId(null)
+  }
+
+  const handleCopyInviteLink = async (requestId: string) => {
+    const target = requests.find((item) => item.id === requestId)
+    if (!target || !target.provisionedTenantId) return
+
+    setSubmittingId(requestId)
+    const result = await previewInitialClubAdminAccessInvite({
+      requestId,
+      requestorEmail: target.requestorEmail,
+      requestorName: target.requestorName,
+      tenantId: target.provisionedTenantId,
+    })
+
+    if (!result.ok) {
+      setError(result.error.message)
+      setInfo(null)
+      setSubmittingId(null)
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(result.data.actionLink)
+      setError(null)
+      setInfo(`Copied initial access link for ${target.requestorEmail}.`)
+    } catch {
+      setError("Invite preview generated, but clipboard copy failed.")
+      setInfo(result.data.actionLink)
+    }
+
     setSubmittingId(null)
   }
 
@@ -542,15 +577,28 @@ export default function PlatformAdminRequestsPage() {
                     </div>
 
                     {request.provisionedTenantId ? (
-                      <Button
-                        type="button"
-                        disabled={isSubmitting}
-                        variant="outline"
-                        className="h-11 w-full rounded-full border-slate-200"
-                        onClick={() => void handleResendInvite(request.id)}
-                      >
-                        Resend initial access invite
-                      </Button>
+                      <div className="grid gap-3">
+                        <Button
+                          type="button"
+                          disabled={isSubmitting}
+                          variant="outline"
+                          className="h-11 w-full rounded-full border-slate-200"
+                          onClick={() => void handleResendInvite(request.id)}
+                        >
+                          Resend initial access invite
+                        </Button>
+                        {isLocalPreviewEnabled ? (
+                          <Button
+                            type="button"
+                            disabled={isSubmitting}
+                            variant="outline"
+                            className="h-11 w-full rounded-full border-slate-200"
+                            onClick={() => void handleCopyInviteLink(request.id)}
+                          >
+                            Copy initial access link
+                          </Button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 </div>

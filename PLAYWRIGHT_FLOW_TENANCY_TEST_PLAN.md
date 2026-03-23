@@ -11,6 +11,7 @@ Single tracking board for end-to-end flow confidence:
 
 Companion runbook:
 - `CI_SETUP_E2E.md`
+- `TEST_MAILBOX_WORKFLOW.md`
 
 ## Status Key
 
@@ -169,6 +170,7 @@ npx playwright show-report
 - Status: `[~] IN PROGRESS`
 - Notes:
   - Create dedicated users for `club-admin`, `coach`, `athlete` in tenant A and B.
+  - Use dedicated controlled inboxes per `TEST_MAILBOX_WORKFLOW.md`, not inaccessible personal/customer addresses.
 
 #### TST-202 - Persist storageState snapshots
 - Status: `[x] DONE`

@@ -9,6 +9,7 @@ Define project/environment setup for Supabase across local, dev, and prod, inclu
 Companion files:
 - `.env.supabase.example`
 - `SUPABASE_POSTGRES_STATUS_BOARD.md`
+- `TEST_MAILBOX_WORKFLOW.md`
 
 ## Environment Topology
 

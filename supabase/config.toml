@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.dispatch-notification-emails]
 verify_jwt = false
+
+[functions.platform-admin-preview-club-admin-invite]
+verify_jwt = false

@@ -31,6 +31,7 @@ Companion plan:
 - Club-admin support-surface hardening update: `/club-admin/dashboard` and `/club-admin/reports` no longer statically import runtime mock datasets on the Supabase route path; reports also lazy-loads the mock audit logger only for mock mode.
 - Club-admin audit-writer hardening update: `/club-admin/profile`, `/club-admin/billing`, `/club-admin/teams`, and `/club-admin/users` no longer statically import `mock-audit` on the Supabase route path; mock audit logging is lazy-loaded only for mock mode.
 - Club-admin audit-reader hardening update: `/club-admin/audit` no longer statically imports `mock-audit` on the Supabase route path; mock audit logs are lazy-loaded only for mock mode.
+- Local invite-preview testing update: approved platform-admin requests now expose a localhost-only `Copy initial access link` action backed by `platform-admin-preview-club-admin-invite`, so first-login bootstrap can be tested without depending on mailbox access in local development.
 
 ## Verification Snapshot
 
@@ -42,6 +43,7 @@ Companion plan:
 - `npm run test:e2e:supabase`: PASS WITH SKIPS (7 skipped, env-gated suites, March 20, 2026)
 - CI workflow added: `.github/workflows/e2e.yml` (required mock lane + optional secret-gated Supabase lane)
 - Supabase deploy workflow now covers migrations + Edge Function deploys: `.github/workflows/supabase-migrations.yml`
+- Supabase deploy workflow now also deploys the localhost-only invite preview Edge Function: `platform-admin-preview-club-admin-invite`
 - Athlete runtime hardening update: `/athlete/home`, `/athlete/log`, `/athlete/training-plan`, `/athlete/test-week`, `/athlete/trends`, and `/athlete/prs` no longer import `@/lib/mock-data` at page level in `supabase` mode.
 - Athlete runtime hardening update: `/athlete/profile` and `/athlete/wellness` also no longer call page-level mock runtime helpers/imports, so authenticated athlete routes are now clean of direct `@/lib/mock-data` imports.
 
