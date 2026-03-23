@@ -23,9 +23,10 @@ import { getCoachScope } from "@/lib/coach-scope"
 import { getCoachTeamsSnapshotForCurrentUser } from "@/lib/data/coach/teams-data"
 import { createAthleteInviteForCurrentCoach } from "@/lib/data/athlete/invite-data"
 import { useRole } from "@/lib/role-context"
-import { MOCK_COACH_TEAM_STORAGE_KEY } from "@/lib/mock-auth"
 import { getBackendMode } from "@/lib/supabase/config"
 import type { Athlete, Team } from "@/lib/mock-data"
+
+const MOCK_COACH_TEAM_STORAGE_KEY = "pacelab:mock-coach-team"
 
 function getTeamDisciplineLabel(team: Pick<Team, "disciplines" | "eventGroup"> | null | undefined) {
   if (!team) return ""
