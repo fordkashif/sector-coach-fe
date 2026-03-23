@@ -40,10 +40,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { publishTrainingPlanForCurrentCoach } from "@/lib/data/training-plan/training-plan-data"
-import { EventGroup, mockAthletes, mockTeams, mockTrainingPlans, onPublishPlan, type Role } from "@/lib/mock-data"
+import { mockAthletes, mockTeams, mockTrainingPlans } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { tenantStorageKey } from "@/lib/tenant-storage"
 import { cn } from "@/lib/utils"
+
+type Role = "coach" | "athlete" | "club-admin"
+type EventGroup = "Sprint" | "Mid" | "Distance" | "Jumps" | "Throws"
 
 type WizardStep = 1 | 2 | 3
 type PlanSource = "template" | "copy" | "blank"
@@ -1078,7 +1081,6 @@ export default function CoachTrainingPlanPageClient({
       count = publishResult.data.assignedCount
     }
 
-    onPublishPlan()
     setPublishedCount(count)
 
     if (backendMode !== "supabase") {
