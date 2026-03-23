@@ -9,9 +9,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { acceptAthleteInviteForCurrentUser, getAthleteInvitePreviewForCurrentUser } from "@/lib/data/athlete/invite-data"
+import type { Team } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { tenantStorageKey } from "@/lib/tenant-storage"
-import { getTeamDisciplineLabel, mockTeams } from "@/lib/mock-data"
 
 const JOIN_TEAM_STORAGE_KEY = "pacelab:join-team-state"
 
@@ -72,6 +72,8 @@ export function JoinTeamForm({ initialCode = "" }: { initialCode?: string }) {
     eventGroup: string | null
     status: "pending" | "accepted" | "expired" | "revoked"
   } | null>(null)
+  const [mockTeams, setMockTeams] = useState<Team[]>([])
+  const [mockTeamDisciplineLabel, setMockTeamDisciplineLabel] = useState<((team: Team) => string) | null>(null)
 
   useEffect(() => {
     if (!initialCode) return
@@ -114,9 +116,25 @@ export function JoinTeamForm({ initialCode = "" }: { initialCode?: string }) {
     }
   }, [isSupabaseMode, normalizedCode])
 
+  useEffect(() => {
+    if (isSupabaseMode) return
+    let cancelled = false
+
+    void import("@/lib/mock-data").then((module) => {
+      if (!cancelled) {
+        setMockTeams(module.mockTeams)
+        setMockTeamDisciplineLabel(() => module.getTeamDisciplineLabel)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
+
   const mockMatch = useMemo(
     () => mockTeams.find((team) => team.id.toLowerCase() === normalizedCode) ?? null,
-    [normalizedCode],
+    [mockTeams, normalizedCode],
   )
 
   const resolvedInvite = useMemo(() => {
@@ -136,10 +154,10 @@ export function JoinTeamForm({ initialCode = "" }: { initialCode?: string }) {
       inviteId: mockMatch.id,
       teamId: mockMatch.id,
       name: mockMatch.name,
-      group: getTeamDisciplineLabel(mockMatch),
+      group: mockTeamDisciplineLabel ? mockTeamDisciplineLabel(mockMatch) : "Sprint",
       athleteCount: mockMatch.athleteCount,
     }
-  }, [isSupabaseMode, mockMatch, supabaseInvite])
+  }, [isSupabaseMode, mockMatch, mockTeamDisciplineLabel, supabaseInvite])
 
   const joinedMockTeam = mockTeams.find((team) => team.id === joinState.joinedTeamId) ?? null
 
