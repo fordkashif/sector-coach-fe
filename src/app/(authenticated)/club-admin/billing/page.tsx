@@ -11,7 +11,6 @@ import {
   insertAuditEvent,
   upsertClubAdminBillingRecord,
 } from "@/lib/data/club-admin/ops-data"
-import { logAuditEvent } from "@/lib/mock-audit"
 import { getBackendMode } from "@/lib/supabase/config"
 import { tenantStorageKey } from "@/lib/tenant-storage"
 import { cn } from "@/lib/utils"
@@ -54,6 +53,12 @@ export default function ClubAdminBillingPage() {
   const [saved, setSaved] = useState(false)
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [mockAuditLogger, setMockAuditLogger] = useState<((event: {
+    actor: string
+    action: string
+    target: string
+    detail?: string
+  }) => void) | null>(null)
 
   useEffect(() => {
     if (!isSupabaseMode) return
@@ -74,6 +79,21 @@ export default function ClubAdminBillingPage() {
     }
 
     void load()
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
+
+  useEffect(() => {
+    if (isSupabaseMode) return
+    let cancelled = false
+
+    void import("@/lib/mock-audit").then((module) => {
+      if (!cancelled) {
+        setMockAuditLogger(() => module.logAuditEvent)
+      }
+    })
+
     return () => {
       cancelled = true
     }
@@ -162,7 +182,7 @@ export default function ClubAdminBillingPage() {
 
                 saveBilling(billing)
                 setSaved(true)
-                logAuditEvent({ actor: "club-admin", action: "billing_update", target: "subscription", detail: `${billing.plan} ${billing.seats} seats` })
+                mockAuditLogger?.({ actor: "club-admin", action: "billing_update", target: "subscription", detail: `${billing.plan} ${billing.seats} seats` })
               }}
             >
               Save billing settings
@@ -218,3 +238,5 @@ export default function ClubAdminBillingPage() {
     </div>
   )
 }
+
+

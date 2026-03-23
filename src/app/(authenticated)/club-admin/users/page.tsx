@@ -17,7 +17,6 @@ import {
   type ClubAdminTeamOption,
   type ClubAdminUser,
 } from "@/lib/data/club-admin/ops-data"
-import { logAuditEvent } from "@/lib/mock-audit"
 import type { AccountRequest, ClubUser, CoachInvite, UserRole } from "@/lib/mock-club-admin"
 import { getBackendMode } from "@/lib/supabase/config"
 import {
@@ -48,6 +47,12 @@ export default function ClubAdminUsersPage() {
   const [teams, setTeams] = useState(() => (isSupabaseMode ? [] : loadTeamsSafe()))
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [mockAuditLogger, setMockAuditLogger] = useState<((event: {
+    actor: string
+    action: string
+    target: string
+    detail?: string
+  }) => void) | null>(null)
 
   const saveUsers = (next: ClubUser[]) => {
     setUsers(next)
@@ -65,7 +70,7 @@ export default function ClubAdminUsersPage() {
       if (!result.ok) setBackendError((current) => current ?? result.error.message)
       return
     }
-    logAuditEvent({ actor: "club-admin", action, target, detail })
+    mockAuditLogger?.({ actor: "club-admin", action, target, detail })
   }
 
   useEffect(() => {
@@ -121,6 +126,21 @@ export default function ClubAdminUsersPage() {
     }
 
     void loadSnapshot()
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
+
+  useEffect(() => {
+    if (isSupabaseMode) return
+    let cancelled = false
+
+    void import("@/lib/mock-audit").then((module) => {
+      if (!cancelled) {
+        setMockAuditLogger(() => module.logAuditEvent)
+      }
+    })
+
     return () => {
       cancelled = true
     }
