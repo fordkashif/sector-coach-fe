@@ -128,7 +128,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/coach/reports")
 
   const coachTeamsHref = useMemo(() => {
-    if (role !== "coach" || typeof window === "undefined") return "/coach/teams"
+    if (role !== "coach" || typeof window === "undefined" || getBackendMode() !== "mock") return "/coach/teams"
     const coachScope = getCoachScope(role)
     const coachTeamId = window.localStorage.getItem(MOCK_COACH_TEAM_STORAGE_KEY) ?? coachScope.teamId
 
@@ -211,14 +211,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const handleSignOut = async () => {
-    if (getBackendMode() === "supabase") {
+    const backendMode = getBackendMode()
+
+    if (backendMode === "supabase") {
       const supabase = getBrowserSupabaseClient()
       if (supabase) {
         await supabase.auth.signOut()
       }
     }
-    window.localStorage.removeItem(MOCK_ROLE_STORAGE_KEY)
-    window.localStorage.removeItem(MOCK_COACH_TEAM_STORAGE_KEY)
+    if (backendMode === "mock") {
+      window.localStorage.removeItem(MOCK_ROLE_STORAGE_KEY)
+      window.localStorage.removeItem(MOCK_COACH_TEAM_STORAGE_KEY)
+    }
     clearSessionCookies()
     navigate("/login")
   }

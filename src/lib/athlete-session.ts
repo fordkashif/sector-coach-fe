@@ -1,7 +1,9 @@
-import { mockCurrentSession, type SessionBlock } from "@/lib/mock-data"
+import type { SessionBlock } from "@/lib/mock-data"
 
 export const SESSION_PROGRESS_STORAGE_KEY = "pacelab:athlete-session-progress"
 export const SESSION_COMPLETIONS_STORAGE_KEY = "pacelab:athlete-session-completions"
+const FALLBACK_SESSION_ID = "active-session"
+const FALLBACK_BLOCK_COUNT = 1
 
 export type SessionProgress = {
   sessionId: string
@@ -13,7 +15,7 @@ export type SessionProgress = {
 
 export function defaultSessionProgress(options?: { sessionId?: string }): SessionProgress {
   return {
-    sessionId: options?.sessionId ?? mockCurrentSession.id,
+    sessionId: options?.sessionId ?? FALLBACK_SESSION_ID,
     currentBlockIndex: 0,
     completedBlockIds: [],
     values: {},
@@ -25,8 +27,8 @@ export function progressForCurrentSession(
   raw: string | null,
   options?: { sessionId?: string; blockCount?: number },
 ): SessionProgress {
-  const sessionId = options?.sessionId ?? mockCurrentSession.id
-  const blockCount = Math.max(options?.blockCount ?? mockCurrentSession.blocks.length, 1)
+  const sessionId = options?.sessionId ?? FALLBACK_SESSION_ID
+  const blockCount = Math.max(options?.blockCount ?? FALLBACK_BLOCK_COUNT, 1)
   if (!raw) return defaultSessionProgress({ sessionId })
   try {
     const parsed = JSON.parse(raw) as SessionProgress

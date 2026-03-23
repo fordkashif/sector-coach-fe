@@ -4,6 +4,7 @@ import {
   MOCK_COACH_TEAM_STORAGE_KEY,
   MOCK_USER_EMAIL_STORAGE_KEY,
 } from "@/lib/mock-auth"
+import { getBackendMode } from "@/lib/supabase/config"
 
 export interface CoachScope {
   isScopedCoach: boolean
@@ -13,6 +14,10 @@ export interface CoachScope {
 
 export function getCoachScope(role: Role): CoachScope {
   if (role !== "coach" || typeof window === "undefined") {
+    return { isScopedCoach: false, teamId: null, allowTeamSwitcher: false }
+  }
+
+  if (getBackendMode() !== "mock") {
     return { isScopedCoach: false, teamId: null, allowTeamSwitcher: false }
   }
 

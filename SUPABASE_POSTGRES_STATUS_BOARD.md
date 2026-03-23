@@ -23,7 +23,7 @@ Companion plan:
 
 - Current wave: `Wave 6 - Club/Admin Ops + Hardening`
 - Program status: `[x] COMPLETE`
-- Backend runtime status: `[~] MIXED (supabase-mode active for selected athlete/coach flows; mock fallback remains)`
+- Backend runtime status: `[~] MIXED (operational supabase-mode is real; remaining mock runtime is now mostly isolated to explicit mock-mode compatibility and provider-backed billing remains intentionally stubbed)`
 
 ## Verification Snapshot
 
