@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Button } from "@/components/ui/button"
@@ -9,20 +9,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import { loadAccountRequests, saveAccountRequests, type AccountRequest } from "@/lib/mock-club-admin"
 import { setSessionCookies } from "@/lib/auth-session"
+import type { AccountRequest } from "@/lib/mock-club-admin"
 import { getBackendMode, isSupabaseEnabled } from "@/lib/supabase/config"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 import { resolveSessionActor } from "@/lib/supabase/actor"
-import {
-  MOCK_COACH_TEAM_STORAGE_KEY,
-  MOCK_CREDENTIALS,
-  MOCK_ROLE_STORAGE_KEY,
-  MOCK_USER_EMAIL_STORAGE_KEY,
-  resolveMockLogin,
-} from "@/lib/mock-auth"
 
-type DemoAccountKey = keyof typeof MOCK_CREDENTIALS
+type DemoCredential = {
+  email: string
+  password: string
+  role: "athlete" | "coach" | "club-admin"
+  redirectTo: string
+  tenantId: string
+  defaultTeamId?: string
+}
+
+type DemoCredentialMap = Record<"athlete" | "coach" | "clubAdmin", DemoCredential>
+type DemoAccountKey = keyof DemoCredentialMap
 type AuthMode = "signin" | "request"
 
 type RequestFormState = {
@@ -54,6 +57,10 @@ const emptyRequestForm: RequestFormState = {
   notes: "",
 }
 
+const MOCK_ROLE_STORAGE_KEY = "pacelab:mock-role"
+const MOCK_USER_EMAIL_STORAGE_KEY = "pacelab:mock-user-email"
+const MOCK_COACH_TEAM_STORAGE_KEY = "pacelab:mock-coach-team"
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -66,10 +73,27 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [requestForm, setRequestForm] = useState<RequestFormState>(emptyRequestForm)
   const [requestSubmitted, setRequestSubmitted] = useState(false)
+  const [demoCredentials, setDemoCredentials] = useState<DemoCredentialMap | null>(null)
   const safeRedirect = (() => {
     const candidate = searchParams.get("redirect")
     return candidate && candidate.startsWith("/") ? candidate : null
   })()
+
+  useEffect(() => {
+    if (isSupabaseMode) return
+
+    let cancelled = false
+
+    void import("@/lib/mock-auth").then((module) => {
+      if (!cancelled) {
+        setDemoCredentials(module.MOCK_CREDENTIALS)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -127,6 +151,7 @@ export default function LoginPage() {
       return
     }
 
+    const { resolveMockLogin } = await import("@/lib/mock-auth")
     const match = resolveMockLogin(email, password)
 
     if (!match) {
@@ -178,6 +203,7 @@ export default function LoginPage() {
       return
     }
 
+    const { loadAccountRequests, saveAccountRequests } = await import("@/lib/mock-club-admin")
     const existingRequests = loadAccountRequests()
     const nextRequest: AccountRequest = {
       id: `request-${Date.now()}`,
@@ -194,7 +220,8 @@ export default function LoginPage() {
   }
 
   const applyDemoCredentials = (accountKey: DemoAccountKey) => {
-    const account = MOCK_CREDENTIALS[accountKey]
+    const account = demoCredentials?.[accountKey]
+    if (!account) return
     setEmail(account.email)
     setPassword(account.password)
     setError("")
@@ -366,33 +393,36 @@ export default function LoginPage() {
                                 <button
                                   type="button"
                                   onClick={() => applyDemoCredentials("athlete")}
+                                  disabled={!demoCredentials}
                                   className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
                                 >
                                   <span>
                                     <span className="block text-sm font-semibold text-slate-950">Athlete</span>
-                                    <span className="block text-xs text-slate-500">{MOCK_CREDENTIALS.athlete.email}</span>
+                                    <span className="block text-xs text-slate-500">{demoCredentials?.athlete.email ?? "Loading..."}</span>
                                   </span>
                                   <span className="text-xs font-medium uppercase tracking-[0.18em] text-[#1368ff]">Use</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => applyDemoCredentials("coach")}
+                                  disabled={!demoCredentials}
                                   className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
                                 >
                                   <span>
                                     <span className="block text-sm font-semibold text-slate-950">Coach</span>
-                                    <span className="block text-xs text-slate-500">{MOCK_CREDENTIALS.coach.email}</span>
+                                    <span className="block text-xs text-slate-500">{demoCredentials?.coach.email ?? "Loading..."}</span>
                                   </span>
                                   <span className="text-xs font-medium uppercase tracking-[0.18em] text-[#1368ff]">Use</span>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => applyDemoCredentials("clubAdmin")}
+                                  disabled={!demoCredentials}
                                   className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
                                 >
                                   <span>
                                     <span className="block text-sm font-semibold text-slate-950">Club Admin</span>
-                                    <span className="block text-xs text-slate-500">{MOCK_CREDENTIALS.clubAdmin.email}</span>
+                                    <span className="block text-xs text-slate-500">{demoCredentials?.clubAdmin.email ?? "Loading..."}</span>
                                   </span>
                                   <span className="text-xs font-medium uppercase tracking-[0.18em] text-[#1368ff]">Use</span>
                                 </button>

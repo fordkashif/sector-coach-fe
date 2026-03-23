@@ -29,6 +29,7 @@ Companion plan:
 
 - `npm run lint`: PASS (March 22, 2026)
 - `npm run typecheck`: PASS (March 22, 2026)
+- Auth runtime hardening update: `/login` no longer statically imports mock auth/request helpers; mock demo access now lazy-loads only in `mock` mode.
 - `npx playwright test tests/e2e/role-journeys-and-tenancy.spec.ts`: PASS (3/3, March 20, 2026)
 - `npm run test:e2e:supabase`: PASS WITH SKIPS (7 skipped, env-gated suites, March 20, 2026)
 - CI workflow added: `.github/workflows/e2e.yml` (required mock lane + optional secret-gated Supabase lane)
