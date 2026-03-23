@@ -486,6 +486,7 @@ Companion plan:
   - Extended `/settings/notifications` with category-level overrides and introduced `src/lib/notification-categories.ts`; current mapped family is tenant-provisioning lifecycle notifications.
   - Added DB-backed coach/athlete invite notification triggers so invite creation and acceptance now emit `notification_events`, and `/settings/notifications` category coverage now includes coach-invites and athlete-invites.
   - Added DB-backed athlete-facing publication notifications: immediate `training_plan_assignments` now emit `training_plan_published`, and published `test_weeks` now emit `test_week_published`; settings coverage now includes training-plans and test-weeks.
+  - Added `platform_audit_events` for pre-tenant observability and wired tenant-request submission/review/provision RPCs into platform-level audit logging; request lifecycle contract is now documented as `pending|approved|rejected|cancelled`.
 
 ## Quick Start Prompt
 
