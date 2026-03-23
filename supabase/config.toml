@@ -1,0 +1,5 @@
+[functions.platform-admin-send-club-admin-invite]
+verify_jwt = false
+
+[functions.dispatch-notification-emails]
+verify_jwt = false
