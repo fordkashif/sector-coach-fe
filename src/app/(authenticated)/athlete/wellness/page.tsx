@@ -8,7 +8,6 @@ import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { submitCurrentAthleteWellnessEntry } from "@/lib/data/wellness/wellness-data"
 import type { WellnessReadiness } from "@/lib/data/wellness/types"
-import { onSaveWellness } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
 
@@ -36,7 +35,6 @@ export default function AthleteWellnessPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSubmitError(null)
-    onSaveWellness()
 
     const loadScore = (soreness + fatigue + stress) / 3
     const readiness: WellnessReadiness = loadScore <= 2.5 && sleep >= 7 && mood >= 3 ? "green" : loadScore <= 3.5 && sleep >= 6 ? "yellow" : "red"

@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { tenantStorageKey } from "@/lib/tenant-storage"
-import { mockAthletes, mockTeams } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { getCurrentAthleteProfileSnapshot, type CurrentAthleteProfileSnapshot } from "@/lib/data/athlete/profile-data"
 
@@ -29,6 +28,21 @@ const defaultPreferences: AthletePreferences = {
   showPreviousResults: true,
 }
 
+const fallbackAthlete = {
+  name: "Athlete",
+  primaryEvent: "Unassigned",
+  eventGroup: "Unassigned",
+  readiness: "yellow",
+  adherence: null as number | null,
+  lastWellness: null as string | null,
+  age: null as number | null,
+}
+
+const fallbackTeam = {
+  name: "Unassigned",
+  eventGroup: "Unassigned",
+}
+
 function loadPreferences(): AthletePreferences {
   if (typeof window === "undefined") return defaultPreferences
 
@@ -43,8 +57,6 @@ function loadPreferences(): AthletePreferences {
 
 export default function AthleteProfilePage() {
   const backendMode = getBackendMode()
-  const mockAthlete = mockAthletes[0]
-  const mockTeam = mockTeams.find((item) => item.id === mockAthlete.teamId)
   const [backendSnapshot, setBackendSnapshot] = useState<CurrentAthleteProfileSnapshot | null>(null)
   const [backendError, setBackendError] = useState<string | null>(null)
   const [preferences, setPreferences] = useState<AthletePreferences>(() => loadPreferences())
@@ -91,13 +103,13 @@ export default function AthleteProfilePage() {
     )
   }, [preferences])
 
-  const athleteName = backendMode === "supabase" ? backendSnapshot?.name ?? "Athlete" : mockAthlete.name
+  const athleteName = backendMode === "supabase" ? backendSnapshot?.name ?? "Athlete" : fallbackAthlete.name
   const athletePrimaryEvent =
-    backendMode === "supabase" ? backendSnapshot?.primaryEvent ?? "Unassigned" : mockAthlete.primaryEvent
+    backendMode === "supabase" ? backendSnapshot?.primaryEvent ?? "Unassigned" : fallbackAthlete.primaryEvent
   const athleteEventGroup =
-    backendMode === "supabase" ? backendSnapshot?.eventGroup ?? backendSnapshot?.teamEventGroup ?? "Unassigned" : mockAthlete.eventGroup
-  const athleteReadiness = backendMode === "supabase" ? backendSnapshot?.readiness ?? "yellow" : mockAthlete.readiness
-  const athleteAdherence = backendMode === "supabase" ? backendSnapshot?.adherencePercent ?? null : mockAthlete.adherence
+    backendMode === "supabase" ? backendSnapshot?.eventGroup ?? backendSnapshot?.teamEventGroup ?? "Unassigned" : fallbackAthlete.eventGroup
+  const athleteReadiness = backendMode === "supabase" ? backendSnapshot?.readiness ?? "yellow" : fallbackAthlete.readiness
+  const athleteAdherence = backendMode === "supabase" ? backendSnapshot?.adherencePercent ?? null : fallbackAthlete.adherence
   const athleteLastWellness =
     backendMode === "supabase"
       ? backendSnapshot?.lastWellnessDate
@@ -107,11 +119,11 @@ export default function AthleteProfilePage() {
             year: "numeric",
           })
         : null
-      : mockAthlete.lastWellness
-  const athleteAge = backendMode === "supabase" ? backendSnapshot?.age ?? null : mockAthlete.age
-  const teamName = backendMode === "supabase" ? backendSnapshot?.teamName ?? "Unassigned" : mockTeam?.name ?? "Unassigned"
+      : fallbackAthlete.lastWellness
+  const athleteAge = backendMode === "supabase" ? backendSnapshot?.age ?? null : fallbackAthlete.age
+  const teamName = backendMode === "supabase" ? backendSnapshot?.teamName ?? "Unassigned" : fallbackTeam.name
   const disciplineGroup =
-    backendMode === "supabase" ? backendSnapshot?.teamEventGroup ?? athleteEventGroup : mockTeam?.eventGroup ?? athleteEventGroup
+    backendMode === "supabase" ? backendSnapshot?.teamEventGroup ?? athleteEventGroup : fallbackTeam.eventGroup
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:space-y-6 sm:p-6">

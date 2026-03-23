@@ -34,6 +34,7 @@ Companion plan:
 - CI workflow added: `.github/workflows/e2e.yml` (required mock lane + optional secret-gated Supabase lane)
 - Supabase deploy workflow now covers migrations + Edge Function deploys: `.github/workflows/supabase-migrations.yml`
 - Athlete runtime hardening update: `/athlete/home`, `/athlete/log`, `/athlete/training-plan`, `/athlete/test-week`, `/athlete/trends`, and `/athlete/prs` no longer import `@/lib/mock-data` at page level in `supabase` mode.
+- Athlete runtime hardening update: `/athlete/profile` and `/athlete/wellness` also no longer call page-level mock runtime helpers/imports, so authenticated athlete routes are now clean of direct `@/lib/mock-data` imports.
 
 ## Global Gate - Migration Automation
 
