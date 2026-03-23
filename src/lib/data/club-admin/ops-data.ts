@@ -143,6 +143,8 @@ export type ClubAdminProfileRecord = {
   seasonYear: string
   seasonStart: string
   seasonEnd: string
+  passwordSetAt?: string | null
+  onboardingCompletedAt?: string | null
 }
 
 export type ClubAdminBillingRecord = {
@@ -525,7 +527,7 @@ export async function getClubAdminProfileRecord(): Promise<Result<ClubAdminProfi
     clientResult.client
       .from("club_profiles")
       .select(
-        "club_name, short_name, primary_color, season_year, season_start, season_end",
+        "club_name, short_name, primary_color, season_year, season_start, season_end, password_set_at, onboarding_completed_at",
       )
       .eq("tenant_id", contextResult.data.tenantId)
       .maybeSingle(),
@@ -542,6 +544,8 @@ export async function getClubAdminProfileRecord(): Promise<Result<ClubAdminProfi
     season_year: string
     season_start: string
     season_end: string
+    password_set_at: string | null
+    onboarding_completed_at: string | null
   } | null
 
   return ok({
@@ -551,6 +555,8 @@ export async function getClubAdminProfileRecord(): Promise<Result<ClubAdminProfi
     seasonYear: row?.season_year ?? nowYear,
     seasonStart: row?.season_start ?? `${nowYear}-01-10`,
     seasonEnd: row?.season_end ?? `${nowYear}-10-30`,
+    passwordSetAt: row?.password_set_at ?? null,
+    onboardingCompletedAt: row?.onboarding_completed_at ?? null,
   })
 }
 
@@ -580,6 +586,53 @@ export async function upsertClubAdminProfileRecord(
   )
 
   if (error) return { ok: false, error: mapPostgrestError(error) }
+  return ok(undefined)
+}
+
+export async function completeClubAdminFirstAccessSetup(params: {
+  password: string
+  profile: ClubAdminProfileRecord
+}): Promise<Result<void>> {
+  const clientResult = requireSupabaseClient("completeClubAdminFirstAccessSetup")
+  if (!clientResult.ok) return clientResult
+
+  const contextResult = await getCurrentClubAdminContext(clientResult.client)
+  if (!contextResult.ok) return contextResult
+
+  const password = params.password.trim()
+  if (password.length < 8) return err("VALIDATION", "Password must be at least 8 characters.")
+  if (!params.profile.clubName.trim()) return err("VALIDATION", "Club name is required.")
+  if (!params.profile.shortName.trim()) return err("VALIDATION", "Short name is required.")
+
+  const passwordResult = await clientResult.client.auth.updateUser({ password })
+  if (passwordResult.error) return err("UNKNOWN", passwordResult.error.message, passwordResult.error)
+
+  const completedAt = new Date().toISOString()
+  const { error } = await clientResult.client.from("club_profiles").upsert(
+    {
+      tenant_id: contextResult.data.tenantId,
+      club_name: params.profile.clubName.trim(),
+      short_name: params.profile.shortName.trim(),
+      primary_color: params.profile.primaryColor.trim() || "#16a34a",
+      season_year: params.profile.seasonYear.trim(),
+      season_start: params.profile.seasonStart,
+      season_end: params.profile.seasonEnd,
+      password_set_at: completedAt,
+      onboarding_completed_at: completedAt,
+      onboarding_completed_by_user_id: contextResult.data.userId,
+    },
+    { onConflict: "tenant_id" },
+  )
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+
+  const auditResult = await insertAuditEvent({
+    action: "first_access_setup_complete",
+    target: "club-admin-onboarding",
+    detail: params.profile.clubName.trim(),
+  })
+  if (!auditResult.ok) return auditResult
+
   return ok(undefined)
 }
 

@@ -29,6 +29,7 @@ import CoachTestWeekPage from "@/app/(authenticated)/coach/test-week/page"
 import CoachTrainingPlanPage from "@/app/(authenticated)/coach/training-plan/page"
 import CoachAthleteDetailPage from "@/app/(authenticated)/coach/athletes/[athleteId]/page"
 import ClubAdminDashboardPage from "@/app/(authenticated)/club-admin/dashboard/page"
+import ClubAdminGetStartedPage from "@/app/(authenticated)/club-admin/get-started/page"
 import ClubAdminProfilePage from "@/app/(authenticated)/club-admin/profile/page"
 import ClubAdminUsersPage from "@/app/(authenticated)/club-admin/users/page"
 import ClubAdminTeamsPage from "@/app/(authenticated)/club-admin/teams/page"
@@ -75,6 +76,7 @@ export function AppRouter() {
             <Route path="/coach/athletes/:athleteId" element={<CoachAthleteDetailPage />} />
 
             <Route path="/club-admin" element={<ClubAdminRedirectPage />} />
+            <Route path="/club-admin/get-started" element={<ClubAdminGetStartedPage />} />
             <Route path="/club-admin/dashboard" element={<ClubAdminDashboardPage />} />
             <Route path="/club-admin/profile" element={<ClubAdminProfilePage />} />
             <Route path="/club-admin/users" element={<ClubAdminUsersPage />} />

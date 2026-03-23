@@ -8,6 +8,7 @@ export type GuardAuthContext = {
   isAuthenticated: boolean
   role: AppRole | null
   tenantId: string | null
+  clubAdminOnboardingComplete: boolean
 }
 
 function isAppRole(value: unknown): value is AppRole {
@@ -24,6 +25,7 @@ async function getMockGuardAuthContext(): Promise<GuardAuthContext> {
     isAuthenticated: Boolean(getCookieValue(SESSION_COOKIE)),
     role: getRoleFromCookie(),
     tenantId: getCookieValue(TENANT_COOKIE),
+    clubAdminOnboardingComplete: true,
   }
 }
 
@@ -34,6 +36,7 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
       isAuthenticated: false,
       role: null,
       tenantId: null,
+      clubAdminOnboardingComplete: true,
     }
   }
 
@@ -44,6 +47,7 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
       isAuthenticated: false,
       role: null,
       tenantId: null,
+      clubAdminOnboardingComplete: true,
     }
   }
 
@@ -53,6 +57,25 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
       isAuthenticated: true,
       role: null,
       tenantId: null,
+      clubAdminOnboardingComplete: true,
+    }
+  }
+
+  let clubAdminOnboardingComplete = true
+  if (actor.role === "club-admin" && actor.tenantId) {
+    const onboardingResult = await supabase
+      .from("club_profiles")
+      .select("password_set_at, onboarding_completed_at")
+      .eq("tenant_id", actor.tenantId)
+      .maybeSingle()
+
+    if (!onboardingResult.error) {
+      const row = onboardingResult.data as {
+        password_set_at: string | null
+        onboarding_completed_at: string | null
+      } | null
+
+      clubAdminOnboardingComplete = Boolean(row?.password_set_at && row?.onboarding_completed_at)
     }
   }
 
@@ -60,6 +83,7 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
     isAuthenticated: true,
     role: actor.role,
     tenantId: actor.tenantId,
+    clubAdminOnboardingComplete,
   }
 }
 

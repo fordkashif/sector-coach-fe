@@ -5,11 +5,12 @@ export interface AccessInput {
   isAuthenticated: boolean
   role: AppRole | null
   tenantId: string | null
+  clubAdminOnboardingComplete?: boolean
 }
 
 export interface AccessResult {
   allowed: boolean
-  reason?: "unauthenticated" | "missing-tenant" | "forbidden-role"
+  reason?: "unauthenticated" | "missing-tenant" | "forbidden-role" | "onboarding-incomplete"
   redirectTo?: string
 }
 
@@ -23,7 +24,7 @@ export function isProtectedPath(pathname: string) {
 }
 
 export function evaluateAccess(input: AccessInput): AccessResult {
-  const { pathname, isAuthenticated, role, tenantId } = input
+  const { pathname, isAuthenticated, role, tenantId, clubAdminOnboardingComplete = true } = input
 
   if (!isProtectedPath(pathname)) {
     return { allowed: true }
@@ -55,6 +56,16 @@ export function evaluateAccess(input: AccessInput): AccessResult {
 
   if (pathname.startsWith("/club-admin") && role !== "club-admin") {
     return { allowed: false, reason: "forbidden-role", redirectTo: "/login" }
+  }
+
+  if (pathname.startsWith("/club-admin") && role === "club-admin") {
+    const isGetStarted = pathname === "/club-admin/get-started"
+    if (!clubAdminOnboardingComplete && !isGetStarted) {
+      return { allowed: false, reason: "onboarding-incomplete", redirectTo: "/club-admin/get-started" }
+    }
+    if (clubAdminOnboardingComplete && isGetStarted) {
+      return { allowed: false, reason: "forbidden-role", redirectTo: "/club-admin/dashboard" }
+    }
   }
 
   return { allowed: true }
