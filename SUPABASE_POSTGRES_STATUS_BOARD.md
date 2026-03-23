@@ -30,6 +30,7 @@ Companion plan:
 - Athlete invite-join hardening update: `join-team-form` no longer statically imports `mockTeams` on the Supabase route path; mock team fallback data is lazy-loaded only for mock mode.
 - Club-admin support-surface hardening update: `/club-admin/dashboard` and `/club-admin/reports` no longer statically import runtime mock datasets on the Supabase route path; reports also lazy-loads the mock audit logger only for mock mode.
 - Club-admin audit-writer hardening update: `/club-admin/profile`, `/club-admin/billing`, `/club-admin/teams`, and `/club-admin/users` no longer statically import `mock-audit` on the Supabase route path; mock audit logging is lazy-loaded only for mock mode.
+- Club-admin audit-reader hardening update: `/club-admin/audit` no longer statically imports `mock-audit` on the Supabase route path; mock audit logs are lazy-loaded only for mock mode.
 
 ## Verification Snapshot
 

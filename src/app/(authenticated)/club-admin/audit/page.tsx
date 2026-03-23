@@ -10,7 +10,7 @@ import {
 import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { type AuditEvent, loadAuditLogs } from "@/lib/mock-audit"
+import type { AuditEvent } from "@/lib/mock-audit"
 import { getBackendMode } from "@/lib/supabase/config"
 import { getClubAdminAuditEvents } from "@/lib/data/club-admin/ops-data"
 
@@ -19,11 +19,26 @@ const columnHelper = createColumnHelper<AuditEvent>()
 export default function ClubAdminAuditPage() {
   const backendMode = getBackendMode()
   const isSupabaseMode = backendMode === "supabase"
-  const [entries, setEntries] = useState<AuditEvent[]>(() => (isSupabaseMode ? [] : loadAuditLogs()))
+  const [entries, setEntries] = useState<AuditEvent[]>([])
   const [query, setQuery] = useState("")
   const [actionFilter, setActionFilter] = useState("all")
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (isSupabaseMode) return
+    let cancelled = false
+
+    void import("@/lib/mock-audit").then((module) => {
+      if (!cancelled) {
+        setEntries(module.loadAuditLogs())
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
 
   useEffect(() => {
     if (!isSupabaseMode) return
