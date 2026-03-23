@@ -105,6 +105,18 @@ npx playwright show-report
     - `tests/e2e/setup/supabase-auth.setup.ts`
     - `tests/e2e/helpers/supabase-auth.ts`
 
+#### TST-403 - Platform-admin request review flow
+- Status: `[x] DONE`
+- Notes:
+  - Added Supabase-mode end-to-end coverage for:
+    - public tenant request submission
+    - platform-admin queue visibility
+    - reject review action
+    - platform audit visibility
+  - Uses unique org/email values per run to avoid collisions.
+  - Evidence:
+    - `tests/e2e/supabase/platform-admin.spec.ts`
+
 ### TW1 - Mock Baseline Stabilization
 
 #### TST-101 - Shared role seeding helper
@@ -234,6 +246,7 @@ npx playwright show-report
   - Added Supabase platform-admin smoke spec:
     - `tests/e2e/supabase/platform-admin.spec.ts`
   - Extended auth-state setup to generate optional `playwright/.auth/platform-admin.json` when platform-admin e2e credentials are configured.
+  - Expanded platform-admin spec to cover public request submission -> platform-admin review -> platform audit verification.
 
 ## Exit Criteria
 
