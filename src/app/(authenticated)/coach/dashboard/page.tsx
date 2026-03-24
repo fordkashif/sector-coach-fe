@@ -18,6 +18,10 @@ import {
   getCoachDashboardSnapshotForCurrentUser,
   type CoachDashboardSnapshot,
 } from "@/lib/data/coach/dashboard-data"
+import {
+  getCurrentCoachOnboardingState,
+  setCurrentCoachSetupGuideDismissed,
+} from "@/lib/data/coach/invite-claim-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
 
@@ -67,6 +71,8 @@ export default function CoachDashboardPage() {
   const coachTeamId = getCookieValue(COACH_TEAM_COOKIE)
   const [backendSnapshot, setBackendSnapshot] = useState<CoachDashboardSnapshot | null>(null)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [setupGuideDismissedAt, setSetupGuideDismissedAt] = useState<string | null>(null)
+  const [setupGuideSaving, setSetupGuideSaving] = useState(false)
   const [mockData, setMockData] = useState<{
     athletes: Athlete[]
     prs: PR[]
@@ -80,7 +86,10 @@ export default function CoachDashboardPage() {
     let cancelled = false
 
     const loadSnapshot = async () => {
-      const result = await getCoachDashboardSnapshotForCurrentUser({ scopeTeamId: role === "coach" ? coachTeamId : null })
+      const [result, onboardingResult] = await Promise.all([
+        getCoachDashboardSnapshotForCurrentUser({ scopeTeamId: role === "coach" ? coachTeamId : null }),
+        getCurrentCoachOnboardingState(),
+      ])
       if (cancelled) return
       if (!result.ok) {
         setBackendError(result.error.message)
@@ -88,6 +97,9 @@ export default function CoachDashboardPage() {
       }
       setBackendError(null)
       setBackendSnapshot(result.data)
+      if (onboardingResult.ok) {
+        setSetupGuideDismissedAt(onboardingResult.data.setupGuideDismissedAt ?? null)
+      }
     }
 
     void loadSnapshot()
@@ -211,6 +223,11 @@ export default function CoachDashboardPage() {
     { label: "Watch", value: readinessSummary.yellow, tone: "bg-amber-400", text: "text-amber-700", surface: "bg-amber-50" },
     { label: "Review", value: readinessSummary.red, tone: "bg-rose-500", text: "text-rose-700", surface: "bg-rose-50" },
   ]
+  const coachNeedsGuide = backendMode === "supabase" && (
+    sourceTeams.length === 0 ||
+    scopedAthletes.length === 0 ||
+    scopedTests.length === 0
+  )
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
@@ -227,6 +244,95 @@ export default function CoachDashboardPage() {
             {scopedTeam ? ` Viewing ${scopedTeam.name}.` : ""}
           </p>
         </div>
+
+        {coachNeedsGuide && !setupGuideDismissedAt ? (
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.04)]">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">First steps</p>
+                <h2 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">Use this workspace in the right order</h2>
+                <p className="text-sm leading-6 text-slate-600">
+                  A new coach should not have to guess the next move. Confirm the assigned team, review the roster, and then build the first training plan or test week from the team surfaces.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-full px-5"
+                disabled={setupGuideSaving}
+                onClick={async () => {
+                  setSetupGuideSaving(true)
+                  const result = await setCurrentCoachSetupGuideDismissed(true)
+                  setSetupGuideSaving(false)
+                  if (!result.ok) {
+                    setBackendError((current) => current ?? result.error.message)
+                    return
+                  }
+                  setSetupGuideDismissedAt(new Date().toISOString())
+                }}
+              >
+                {setupGuideSaving ? "Saving..." : "Dismiss for now"}
+              </Button>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-sm font-medium text-slate-950">1. Confirm team scope</p>
+                <p className="mt-1 text-sm text-slate-500">Open the team surface first so you know exactly which roster and discipline groups you own.</p>
+                <Button asChild variant="outline" className="mt-3 h-10 rounded-full px-4">
+                  <Link to="/coach/teams">Open teams</Link>
+                </Button>
+              </div>
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-sm font-medium text-slate-950">2. Review roster + invites</p>
+                <p className="mt-1 text-sm text-slate-500">Check the current athlete roster, identify gaps, and use the team workflow for new athlete invite links.</p>
+                <Button asChild variant="outline" className="mt-3 h-10 rounded-full px-4">
+                  <Link to={rosterHref}>Open roster</Link>
+                </Button>
+              </div>
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-sm font-medium text-slate-950">3. Build the first cycle</p>
+                <p className="mt-1 text-sm text-slate-500">Move into training plans or test weeks only after the team and roster context are confirmed.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild variant="outline" className="h-10 rounded-full px-4">
+                    <Link to="/coach/training-plan">Training plans</Link>
+                  </Button>
+                  <Button asChild variant="outline" className="h-10 rounded-full px-4">
+                    <Link to="/coach/test-week">Test weeks</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {coachNeedsGuide && setupGuideDismissedAt ? (
+          <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.04)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-950">Continue coach setup</p>
+                <p className="text-sm text-slate-500">Reopen the first-steps guide if you still need orientation in the workspace.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-full px-5"
+                disabled={setupGuideSaving}
+                onClick={async () => {
+                  setSetupGuideSaving(true)
+                  const result = await setCurrentCoachSetupGuideDismissed(false)
+                  setSetupGuideSaving(false)
+                  if (!result.ok) {
+                    setBackendError((current) => current ?? result.error.message)
+                    return
+                  }
+                  setSetupGuideDismissedAt(null)
+                }}
+              >
+                {setupGuideSaving ? "Saving..." : "Resume guide"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.75fr)]">
           <div className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.04)]">
