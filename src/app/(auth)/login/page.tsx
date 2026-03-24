@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { setSessionCookies } from "@/lib/auth-session"
@@ -55,6 +56,14 @@ const featurePillars = [
     label: "Teams",
     copy: "Move between athlete, coach, and club admin workspaces with one shared operating model.",
   },
+] as const
+
+const organizationTypeOptions = [
+  { value: "school", label: "School" },
+  { value: "club", label: "Club" },
+  { value: "university", label: "University" },
+  { value: "private-coaching-group", label: "Private coaching group" },
+  { value: "federation", label: "Federation" },
 ] as const
 
 const emptyRequestForm: RequestFormState = {
@@ -315,6 +324,7 @@ export default function LoginPage() {
       }
 
       setError("")
+      setRequestForm(emptyRequestForm)
       setRequestSubmitted(true)
       return
     }
@@ -332,6 +342,8 @@ export default function LoginPage() {
       createdAt: new Date().toISOString(),
     }
     saveAccountRequests([nextRequest, ...existingRequests])
+    setError("")
+    setRequestForm(emptyRequestForm)
     setRequestSubmitted(true)
   }
 
@@ -631,14 +643,25 @@ export default function LoginPage() {
                         <Label htmlFor="request-organization-type" className="text-sm font-medium text-slate-700">
                           Organization type
                         </Label>
-                        <Input
-                          id="request-organization-type"
-                          required
+                        <Select
                           value={requestForm.organizationType}
-                          onChange={(event) => setRequestForm((previous) => ({ ...previous, organizationType: event.target.value }))}
-                          placeholder="School, club, university"
-                          className="h-14 rounded-full border-slate-200 bg-white px-5 text-base shadow-none placeholder:text-slate-400"
-                        />
+                          onValueChange={(value) => setRequestForm((previous) => ({ ...previous, organizationType: value }))}
+                        >
+                          <SelectTrigger
+                            id="request-organization-type"
+                            className="h-14 w-full rounded-full border-slate-200 bg-white px-5 text-base shadow-none"
+                            aria-label="Organization type"
+                          >
+                            <SelectValue placeholder="Select organization type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {organizationTypeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="space-y-2.5">
                         <Label htmlFor="request-region" className="text-sm font-medium text-slate-700">
