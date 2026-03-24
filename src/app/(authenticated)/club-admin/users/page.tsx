@@ -32,6 +32,9 @@ import { cn } from "@/lib/utils"
 export default function ClubAdminUsersPage() {
   const backendMode = getBackendMode()
   const isSupabaseMode = backendMode === "supabase"
+  const isLocalPreviewEnabled =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
   const [users, setUsers] = useState<ClubUser[]>(() => (isSupabaseMode ? [] : loadUsersSafe()))
   const [invites, setInvites] = useState<CoachInvite[]>(() => (isSupabaseMode ? [] : loadInvitesSafe()))
   const [accountRequests, setAccountRequests] = useState<AccountRequest[]>(() =>
@@ -263,6 +266,19 @@ export default function ClubAdminUsersPage() {
                     {invite.inviteUrl ? (
                       <div className="mt-2 flex items-center gap-2">
                         <code className="rounded bg-white px-2 py-1 text-xs text-slate-700">{invite.inviteUrl}</code>
+                        {isLocalPreviewEnabled ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 rounded-full px-3 text-xs"
+                            onClick={() => {
+                              const absoluteUrl = `${window.location.origin}${invite.inviteUrl}`
+                              window.open(absoluteUrl, "_blank", "noopener,noreferrer")
+                            }}
+                          >
+                            Open invite
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           variant="outline"
