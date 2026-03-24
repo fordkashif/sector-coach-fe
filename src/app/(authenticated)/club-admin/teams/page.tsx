@@ -86,6 +86,7 @@ export default function ClubAdminTeamsPage() {
   )
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null)
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [teamDraft, setTeamDraft] = useState<TeamRowDraft | null>(null)
   const [mockAuditLogger, setMockAuditLogger] = useState<((event: {
@@ -173,6 +174,7 @@ export default function ClubAdminTeamsPage() {
   const currentUserCoachOption = assignableCoaches.find((option) => option.isSelf)
 
   const beginEdit = (team: ClubTeam) => {
+    setSaveSuccessMessage(null)
     setEditingTeamId(team.id)
     setTeamDraft({
       name: team.name,
@@ -202,6 +204,11 @@ export default function ClubAdminTeamsPage() {
       {backendError ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Backend sync issue: {backendError}
+        </section>
+      ) : null}
+      {saveSuccessMessage ? (
+        <section className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {saveSuccessMessage}
         </section>
       ) : null}
       {isSupabaseMode && backendLoading ? (
@@ -343,7 +350,10 @@ export default function ClubAdminTeamsPage() {
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                   <div className="grid gap-3 sm:grid-cols-4 xl:flex-1">
                     <Input
-                      className="h-11 rounded-[16px] border-slate-200 bg-white"
+                      className={cn(
+                        "h-11 rounded-[16px] border-slate-200",
+                        isEditing ? "bg-white" : "bg-slate-100 text-slate-500",
+                      )}
                       value={rowDraft.name}
                       readOnly={!isEditing}
                       onChange={(event) => {
@@ -482,6 +492,7 @@ export default function ClubAdminTeamsPage() {
                               team.id,
                               `${updatedTeam.name} | ${updatedTeam.eventGroup} | ${updatedTeam.status}${updatedTeam.coachEmail ? ` | ${updatedTeam.coachEmail}` : ""}`,
                             )
+                            setSaveSuccessMessage(`Saved changes to ${updatedTeam.name}.`)
                             cancelEdit()
                           }}
                         >
@@ -489,43 +500,14 @@ export default function ClubAdminTeamsPage() {
                         </Button>
                       </>
                     ) : (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mobile-action-secondary"
-                          onClick={() => beginEdit(team)}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mobile-action-secondary"
-                          onClick={async () => {
-                            const nextStatus = team.status === "archived" ? "active" : "archived"
-                            const nextTeam: ClubTeam = { ...team, status: nextStatus }
-                            saveTeams(teams.map((item) => (item.id === team.id ? nextTeam : item)))
-
-                            if (isSupabaseMode) {
-                              const result = await updateClubAdminTeam({
-                                teamId: team.id,
-                                name: team.name,
-                                eventGroup: team.eventGroup,
-                                status: nextStatus,
-                              })
-                              if (!result.ok) {
-                                setBackendError((current) => current ?? result.error.message)
-                                return
-                              }
-                            }
-
-                            await emitAudit(nextStatus === "archived" ? "team_archive" : "team_restore", team.id)
-                          }}
-                        >
-                          {team.status === "archived" ? "Restore" : "Archive"}
-                        </Button>
-                      </>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mobile-action-secondary"
+                        onClick={() => beginEdit(team)}
+                      >
+                        Edit
+                      </Button>
                     )}
                   </div>
                 </div>
