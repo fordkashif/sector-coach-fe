@@ -38,11 +38,22 @@ export type ClubAdminTeamOption = {
   name: string
 }
 
+export type ClubAdminAssignableCoachOption = {
+  userId: string
+  name: string
+  email?: string
+  label: string
+  isSelf: boolean
+}
+
 export type ClubAdminTeamRecord = {
   id: string
   name: string
   eventGroup: string | null
   status: "active" | "archived"
+  leadCoachUserId?: string
+  leadCoachLabel?: string
+  currentUserAssignedAsCoach?: boolean
 }
 
 type ClientResolution =
@@ -658,32 +669,170 @@ export async function getClubAdminTeamsSnapshot(): Promise<Result<ClubAdminTeamR
   const contextResult = await getCurrentClubAdminContext(clientResult.client)
   if (!contextResult.ok) return contextResult
 
-  const { data, error } = await clientResult.client
-    .from("teams")
-    .select("id, name, event_group, is_archived")
-    .eq("tenant_id", contextResult.data.tenantId)
-    .order("created_at", { ascending: false })
+  const { data: authSession } = await clientResult.client.auth.getSession()
+  const currentUser = authSession.session?.user
+  const currentUserEmail = currentUser?.email?.trim().toLowerCase()
 
-  if (error) return { ok: false, error: mapPostgrestError(error) }
+  const [teamsResult, membershipsResult] = await Promise.all([
+    clientResult.client
+      .from("teams")
+      .select("id, name, event_group, is_archived")
+      .eq("tenant_id", contextResult.data.tenantId)
+      .order("created_at", { ascending: false }),
+    clientResult.client
+      .from("team_coaches")
+      .select("team_id, user_id, is_primary, created_at")
+      .eq("tenant_id", contextResult.data.tenantId),
+  ])
+
+  if (teamsResult.error) return { ok: false, error: mapPostgrestError(teamsResult.error) }
+  if (membershipsResult.error) return { ok: false, error: mapPostgrestError(membershipsResult.error) }
+
+  const memberships =
+    ((membershipsResult.data as Array<{
+      team_id: string
+      user_id: string
+      is_primary: boolean
+      created_at: string
+    }> | null) ?? [])
+
+  const assignedTeamIds = new Set(
+    memberships
+      .filter((row) => row.user_id === contextResult.data.userId)
+      .map((row) => row.team_id),
+  )
+
+  const leadMembershipByTeamId = new Map<
+    string,
+    { userId: string; isPrimary: boolean; createdAt: string }
+  >()
+  for (const membership of memberships) {
+    const existing = leadMembershipByTeamId.get(membership.team_id)
+    if (
+      !existing ||
+      (!existing.isPrimary && membership.is_primary) ||
+      (existing.isPrimary === membership.is_primary && membership.created_at < existing.createdAt)
+    ) {
+      leadMembershipByTeamId.set(membership.team_id, {
+        userId: membership.user_id,
+        isPrimary: membership.is_primary,
+        createdAt: membership.created_at,
+      })
+    }
+  }
+
+  const leadCoachUserIds = Array.from(new Set(Array.from(leadMembershipByTeamId.values()).map((row) => row.userId)))
+  const leadProfilesByUserId = new Map<string, { name: string | null }>()
+
+  if (leadCoachUserIds.length > 0) {
+    const profilesResult = await clientResult.client
+      .from("profiles")
+      .select("user_id, display_name")
+      .eq("tenant_id", contextResult.data.tenantId)
+      .in("user_id", leadCoachUserIds)
+
+    if (profilesResult.error) return { ok: false, error: mapPostgrestError(profilesResult.error) }
+
+    for (const row of (profilesResult.data as Array<{ user_id: string; display_name: string | null }> | null) ?? []) {
+      leadProfilesByUserId.set(row.user_id, { name: row.display_name })
+    }
+  }
 
   return ok(
-    ((data as Array<{
+    ((teamsResult.data as Array<{
       id: string
       name: string
       event_group: string | null
       is_archived: boolean
     }> | null) ?? []).map((row) => ({
+      ...(function () {
+        const leadMembership = leadMembershipByTeamId.get(row.id)
+        if (!leadMembership) {
+          return {
+            leadCoachUserId: undefined,
+            leadCoachLabel: undefined,
+          }
+        }
+
+        const isSelf = leadMembership.userId === contextResult.data.userId
+        const leadProfile = leadProfilesByUserId.get(leadMembership.userId)
+        const leadCoachLabel = isSelf
+          ? `${leadProfile?.name || "You"}${currentUserEmail ? ` (${currentUserEmail})` : ""}`
+          : leadProfile?.name || "Assigned coach"
+
+        return {
+          leadCoachUserId: leadMembership.userId,
+          leadCoachLabel,
+        }
+      })(),
       id: row.id,
       name: row.name,
       eventGroup: row.event_group,
       status: row.is_archived ? "archived" : "active",
+      currentUserAssignedAsCoach: assignedTeamIds.has(row.id),
     })),
   )
+}
+
+export async function getClubAdminAssignableCoachOptions(): Promise<Result<ClubAdminAssignableCoachOption[]>> {
+  const clientResult = requireSupabaseClient("getClubAdminAssignableCoachOptions")
+  if (!clientResult.ok) return clientResult
+
+  const contextResult = await getCurrentClubAdminContext(clientResult.client)
+  if (!contextResult.ok) return contextResult
+
+  const { data: authSession } = await clientResult.client.auth.getSession()
+  const currentUser = authSession.session?.user
+  if (!currentUser) return err("UNAUTHORIZED", "No authenticated Supabase session found.")
+
+  const { data, error } = await clientResult.client
+    .from("profiles")
+    .select("user_id, role, display_name, is_active")
+    .eq("tenant_id", contextResult.data.tenantId)
+    .eq("is_active", true)
+    .in("role", ["club-admin", "coach"])
+    .order("display_name", { ascending: true })
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+
+  const rows =
+    ((data as Array<{
+      user_id: string
+      role: "club-admin" | "coach"
+      display_name: string | null
+      is_active: boolean
+    }> | null) ?? [])
+
+  const currentUserEmail = currentUser.email?.trim().toLowerCase()
+  const selfRow = rows.find((row) => row.user_id === contextResult.data.userId)
+  const otherCoachOptions = rows
+    .filter((row) => row.user_id !== contextResult.data.userId && row.role === "coach")
+    .map((row) => ({
+      userId: row.user_id,
+      name: row.display_name || "Coach",
+      email: undefined,
+      label: row.display_name || "Coach",
+      isSelf: false,
+    }))
+
+  const selfName = selfRow?.display_name || currentUser.user_metadata?.display_name || currentUser.email || "You"
+  return ok([
+    ...otherCoachOptions,
+    {
+      userId: contextResult.data.userId,
+      name: selfName,
+      email: currentUserEmail,
+      label: `Assign self${currentUserEmail ? ` (${currentUserEmail})` : ""}`,
+      isSelf: true,
+    },
+  ])
 }
 
 export async function createClubAdminTeam(params: {
   name: string
   eventGroup?: string | null
+  leadCoachUserId?: string | null
+  leadCoachLabel?: string | null
 }): Promise<Result<ClubAdminTeamRecord>> {
   const clientResult = requireSupabaseClient("createClubAdminTeam")
   if (!clientResult.ok) return clientResult
@@ -707,11 +856,30 @@ export async function createClubAdminTeam(params: {
 
   if (error) return { ok: false, error: mapPostgrestError(error) }
 
+  const assignedLeadCoachUserId = params.leadCoachUserId?.trim() || null
+  if (assignedLeadCoachUserId) {
+    const { error: membershipError } = await clientResult.client.from("team_coaches").upsert(
+      {
+        tenant_id: contextResult.data.tenantId,
+        team_id: data.id,
+        user_id: assignedLeadCoachUserId,
+        is_primary: true,
+        created_by_user_id: contextResult.data.userId,
+      },
+      { onConflict: "team_id,user_id" },
+    )
+
+    if (membershipError) return { ok: false, error: mapPostgrestError(membershipError) }
+  }
+
   return ok({
     id: data.id,
     name: data.name,
     eventGroup: data.event_group,
     status: data.is_archived ? "archived" : "active",
+    leadCoachUserId: assignedLeadCoachUserId ?? undefined,
+    leadCoachLabel: params.leadCoachLabel ?? undefined,
+    currentUserAssignedAsCoach: assignedLeadCoachUserId === contextResult.data.userId,
   })
 }
 

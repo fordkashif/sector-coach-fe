@@ -7,17 +7,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  getClubAdminAssignableCoachOptions,
   createClubAdminTeam,
   getClubAdminTeamsSnapshot,
   insertAuditEvent,
   setClubAdminTeamArchived,
+  type ClubAdminAssignableCoachOption,
   updateClubAdminTeam,
 } from "@/lib/data/club-admin/ops-data"
 import type { ClubTeam } from "@/lib/mock-club-admin"
 import type { EventGroup } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { cn } from "@/lib/utils"
-import { loadTeamsSafe, persistTeams } from "../state"
+import { loadTeamsSafe, loadUsersSafe, persistTeams } from "../state"
 
 const groups: EventGroup[] = ["Sprint", "Mid", "Distance", "Jumps", "Throws"]
 const groupTones: Record<EventGroup, string> = {
@@ -36,11 +38,24 @@ function toEventGroup(value: string | null | undefined): EventGroup {
 export default function ClubAdminTeamsPage() {
   const backendMode = getBackendMode()
   const isSupabaseMode = backendMode === "supabase"
+  const initialMockAssignableCoaches: ClubAdminAssignableCoachOption[] = loadUsersSafe()
+    .filter((user) => user.status === "active" && (user.role === "coach" || user.role === "club-admin"))
+    .map((user) => ({
+      userId: user.id,
+      name: user.name,
+      email: user.email,
+      label: user.role === "club-admin" ? `Assign self (${user.email})` : `${user.name} (${user.email})`,
+      isSelf: user.role === "club-admin",
+    }))
+    .sort((left, right) => Number(left.isSelf) - Number(right.isSelf))
 
   const [teams, setTeams] = useState<ClubTeam[]>(() => (isSupabaseMode ? [] : loadTeamsSafe()))
   const [name, setName] = useState("")
   const [eventGroup, setEventGroup] = useState<EventGroup>("Sprint")
-  const [coachEmail, setCoachEmail] = useState("")
+  const [leadCoachSelection, setLeadCoachSelection] = useState("none")
+  const [assignableCoaches, setAssignableCoaches] = useState<ClubAdminAssignableCoachOption[]>(
+    () => (isSupabaseMode ? [] : initialMockAssignableCoaches),
+  )
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
   const [mockAuditLogger, setMockAuditLogger] = useState<((event: {
@@ -70,23 +85,33 @@ export default function ClubAdminTeamsPage() {
 
     const load = async () => {
       setBackendLoading(true)
-      const result = await getClubAdminTeamsSnapshot()
+      const [teamsResult, coachesResult] = await Promise.all([
+        getClubAdminTeamsSnapshot(),
+        getClubAdminAssignableCoachOptions(),
+      ])
       if (cancelled) return
 
-      if (!result.ok) {
-        setBackendError(result.error.message)
+      if (!teamsResult.ok) {
+        setBackendError(teamsResult.error.message)
+        setBackendLoading(false)
+        return
+      }
+      if (!coachesResult.ok) {
+        setBackendError(coachesResult.error.message)
         setBackendLoading(false)
         return
       }
 
       setTeams(
-        result.data.map((team) => ({
+        teamsResult.data.map((team) => ({
           id: team.id,
           name: team.name,
           eventGroup: toEventGroup(team.eventGroup),
           status: team.status,
+          coachEmail: team.leadCoachLabel,
         })),
       )
+      setAssignableCoaches(coachesResult.data)
       setBackendError(null)
       setBackendLoading(false)
     }
@@ -111,6 +136,18 @@ export default function ClubAdminTeamsPage() {
       cancelled = true
     }
   }, [isSupabaseMode])
+
+  const selectedLeadCoach = assignableCoaches.find((option) => option.userId === leadCoachSelection)
+  const selfCoachOption = assignableCoaches.find((option) => option.isSelf)
+  const selfCoachDisplayLabel = selfCoachOption
+    ? `${selfCoachOption.name}${selfCoachOption.email ? ` (${selfCoachOption.email})` : ""}`
+    : undefined
+  const resolvedLeadCoachLabel =
+    leadCoachSelection === "none"
+      ? undefined
+      : selectedLeadCoach?.isSelf
+        ? `${selectedLeadCoach.name}${selectedLeadCoach.email ? ` (${selectedLeadCoach.email})` : ""}`
+        : selectedLeadCoach?.email || selectedLeadCoach?.name
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
@@ -157,14 +194,20 @@ export default function ClubAdminTeamsPage() {
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-slate-950">Lead coach email</Label>
-            <Input
-              className="h-12 rounded-[16px] border-slate-200 bg-slate-50"
-              value={coachEmail}
-              onChange={(event) => setCoachEmail(event.target.value)}
-              placeholder={isSupabaseMode ? "Not yet wired" : "coach@email.com"}
-              disabled={isSupabaseMode}
-            />
+            <Label className="text-sm font-medium text-slate-950">Lead coach</Label>
+            <Select value={leadCoachSelection} onValueChange={setLeadCoachSelection}>
+              <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50">
+                <SelectValue placeholder="Unassigned" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Unassigned</SelectItem>
+                {assignableCoaches.map((coach) => (
+                  <SelectItem key={coach.userId} value={coach.userId}>
+                    {coach.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-end">
             <Button
@@ -177,6 +220,8 @@ export default function ClubAdminTeamsPage() {
                   const result = await createClubAdminTeam({
                     name: name.trim(),
                     eventGroup,
+                    leadCoachUserId: leadCoachSelection === "none" ? null : leadCoachSelection,
+                    leadCoachLabel: resolvedLeadCoachLabel ?? null,
                   })
                   if (!result.ok) {
                     setBackendError(result.error.message)
@@ -188,12 +233,17 @@ export default function ClubAdminTeamsPage() {
                       name: result.data.name,
                       eventGroup: toEventGroup(result.data.eventGroup),
                       status: result.data.status,
+                      coachEmail: result.data.leadCoachLabel,
                     },
                     ...current,
                   ])
-                  await emitAudit("team_create", result.data.name, eventGroup)
+                  await emitAudit(
+                    "team_create",
+                    result.data.name,
+                    `${eventGroup}${result.data.leadCoachLabel ? ` (${result.data.leadCoachLabel})` : ""}`,
+                  )
                   setName("")
-                  setCoachEmail("")
+                  setLeadCoachSelection("none")
                   return
                 }
 
@@ -202,7 +252,7 @@ export default function ClubAdminTeamsPage() {
                   name: name.trim(),
                   eventGroup,
                   status: "active",
-                  coachEmail: coachEmail.trim() || undefined,
+                  coachEmail: resolvedLeadCoachLabel,
                 }
                 saveTeams([next, ...teams])
                 await emitAudit(
@@ -211,7 +261,7 @@ export default function ClubAdminTeamsPage() {
                   `${next.eventGroup}${next.coachEmail ? ` (${next.coachEmail})` : ""}`,
                 )
                 setName("")
-                setCoachEmail("")
+                setLeadCoachSelection("none")
               }}
             >
               Create
@@ -275,19 +325,19 @@ export default function ClubAdminTeamsPage() {
                   <Input
                     className="h-11 rounded-[16px] border-slate-200 bg-white"
                     value={team.coachEmail ?? ""}
-                    placeholder={isSupabaseMode ? "Not yet wired" : "coach@email.com"}
-                    disabled={isSupabaseMode}
-                    onChange={(event) => {
-                      if (isSupabaseMode) return
-                      const next = teams.map((item) => (item.id === team.id ? { ...item, coachEmail: event.target.value || undefined } : item))
-                      saveTeams(next)
-                    }}
+                    placeholder="Unassigned"
+                    readOnly
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 xl:justify-end">
                   <span className={cn("inline-flex rounded-full px-2.5 py-1 text-xs font-semibold", groupTones[team.eventGroup])}>
                     {team.eventGroup}
                   </span>
+                  {team.coachEmail && (team.coachEmail === selfCoachDisplayLabel || team.coachEmail === selfCoachOption?.label) ? (
+                    <span className="inline-flex rounded-full bg-[#eef5ff] px-2.5 py-1 text-xs font-semibold text-[#1368ff]">
+                      Assigned to me
+                    </span>
+                  ) : null}
                   <span className={cn(
                     "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize",
                     team.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700",

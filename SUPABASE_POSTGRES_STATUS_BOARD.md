@@ -37,6 +37,7 @@ Companion plan:
 - Club-admin access-control update: the manual user-provisioning block has been removed from `/club-admin/users`; tenant user creation is now invite-only from the club-admin surface.
 - Club-admin first-run UX update: `/club-admin/dashboard` now shows a guided first-steps panel for new tenants so club admins have an explicit path through teams, invites, and settings instead of landing on a cold dashboard.
 - Club-admin setup persistence update: first-run walkthrough dismissal is now stored on `club_profiles.setup_guide_dismissed_at`, and dismissed tenants get a compact “Resume setup guide” card until onboarding-relevant tenant state is no longer incomplete.
+- Coach assignment update: added `team_coaches` memberships so real coach scope now derives from team assignment, coach invite acceptance assigns the invited coach to the target team, and club-admin team creation can self-assign the current club admin as coach for the new team.
 
 ## Verification Snapshot
 

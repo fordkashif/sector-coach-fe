@@ -86,6 +86,33 @@ function parseNumericValue(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+async function resolveScopedCoachTeamIds(
+  client: SupabaseClient,
+  tenantId: string,
+  userId: string,
+  role: "coach" | "club-admin",
+  requestedScopeTeamId?: string | null,
+): Promise<Result<string[] | null>> {
+  if (role !== "coach") {
+    return ok(requestedScopeTeamId ? [requestedScopeTeamId] : null)
+  }
+
+  const membershipResult = await client
+    .from("team_coaches")
+    .select("team_id")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userId)
+
+  if (membershipResult.error) return { ok: false, error: mapPostgrestError(membershipResult.error) }
+
+  const membershipTeamIds = ((membershipResult.data as Array<{ team_id: string }> | null) ?? []).map((row) => row.team_id)
+  if (membershipTeamIds.length === 0) return ok([])
+  if (requestedScopeTeamId) {
+    return ok(membershipTeamIds.includes(requestedScopeTeamId) ? [requestedScopeTeamId] : [])
+  }
+  return ok(membershipTeamIds)
+}
+
 export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOptions): Promise<Result<CoachDashboardSnapshot>> {
   const clientResult = requireSupabaseClient("getCoachDashboardSnapshotForCurrentUser")
   if (!clientResult.ok) return clientResult
@@ -107,14 +134,30 @@ export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOp
   }
 
   const tenantId = profile.tenant_id as string
-  const scopedTeamId = options?.scopeTeamId ?? null
+  const scopedTeamIdsResult = await resolveScopedCoachTeamIds(
+    clientResult.client,
+    tenantId,
+    userId,
+    profile.role,
+    options?.scopeTeamId,
+  )
+  if (!scopedTeamIdsResult.ok) return scopedTeamIdsResult
+
+  const scopedTeamIds = scopedTeamIdsResult.data
+  if (Array.isArray(scopedTeamIds) && scopedTeamIds.length === 0) {
+    return ok({ teams: [], athletes: [], prs: [], tests: [], trendSeries: {} })
+  }
+
   const teamsQuery = clientResult.client.from("teams").select("id, name, event_group").eq("tenant_id", tenantId).eq("is_archived", false)
   const athletesQuery = clientResult.client
     .from("athletes")
     .select("id, team_id, first_name, last_name, event_group, primary_event, readiness, is_active")
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
-  if (scopedTeamId) athletesQuery.eq("team_id", scopedTeamId)
+  if (scopedTeamIds) {
+    teamsQuery.in("id", scopedTeamIds)
+    athletesQuery.in("team_id", scopedTeamIds)
+  }
 
   const [{ data: teamRows, error: teamError }, { data: athleteRows, error: athleteError }] = await Promise.all([
     teamsQuery,
@@ -149,7 +192,6 @@ export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOp
   }, {})
 
   const teams = ((teamRows as Array<{ id: string; name: string; event_group: string | null }> | null) ?? [])
-    .filter((row) => (scopedTeamId ? row.id === scopedTeamId : true))
     .map((row) => ({
       id: row.id,
       name: row.name,
@@ -355,12 +397,24 @@ export async function getCoachWellnessEntriesForCurrentUser(options?: ScopedOpti
   }
 
   const tenantId = profile.tenant_id as string
+  const scopedTeamIdsResult = await resolveScopedCoachTeamIds(
+    clientResult.client,
+    tenantId,
+    userId,
+    profile.role,
+    options?.scopeTeamId,
+  )
+  if (!scopedTeamIdsResult.ok) return scopedTeamIdsResult
+
+  const scopedTeamIds = scopedTeamIdsResult.data
+  if (Array.isArray(scopedTeamIds) && scopedTeamIds.length === 0) return ok([])
+
   const athleteQuery = clientResult.client
     .from("athletes")
     .select("id")
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
-  if (options?.scopeTeamId) athleteQuery.eq("team_id", options.scopeTeamId)
+  if (scopedTeamIds) athleteQuery.in("team_id", scopedTeamIds)
 
   const { data: athleteRows, error: athleteError } = await athleteQuery
   if (athleteError) return { ok: false, error: mapPostgrestError(athleteError) }
@@ -435,6 +489,20 @@ export async function getCoachAthleteSessionLogsForCurrentUser(
     return err("FORBIDDEN", "Only coach and club-admin users can access athlete session logs.")
   }
 
+  const scopedTeamIdsResult = await resolveScopedCoachTeamIds(
+    clientResult.client,
+    profile.tenant_id as string,
+    userId,
+    profile.role,
+    options?.scopeTeamId,
+  )
+  if (!scopedTeamIdsResult.ok) return scopedTeamIdsResult
+
+  const scopedTeamIds = scopedTeamIdsResult.data
+  if (Array.isArray(scopedTeamIds) && scopedTeamIds.length === 0) {
+    return err("FORBIDDEN", "No team is assigned for this coach profile.")
+  }
+
   const athleteQuery = clientResult.client
     .from("athletes")
     .select("id, team_id")
@@ -444,7 +512,7 @@ export async function getCoachAthleteSessionLogsForCurrentUser(
   const { data: athleteRow, error: athleteError } = await athleteQuery
   if (athleteError) return { ok: false, error: mapPostgrestError(athleteError) }
   if (!athleteRow) return err("NOT_FOUND", "Athlete not found in current tenant.")
-  if (options?.scopeTeamId && athleteRow.team_id !== options.scopeTeamId) {
+  if (scopedTeamIds && !scopedTeamIds.includes(athleteRow.team_id as string)) {
     return err("FORBIDDEN", "Athlete is outside the assigned coach team scope.")
   }
 

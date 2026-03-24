@@ -58,17 +58,42 @@ export async function getCoachTeamsSnapshotForCurrentUser(): Promise<Result<Coac
   }
 
   const tenantId = profile.tenant_id as string
+  let scopedTeamIds: string[] | null = null
+
+  if (profile.role === "coach") {
+    const membershipResult = await clientResult.client
+      .from("team_coaches")
+      .select("team_id")
+      .eq("tenant_id", tenantId)
+      .eq("user_id", userId)
+
+    if (membershipResult.error) return { ok: false, error: mapPostgrestError(membershipResult.error) }
+    scopedTeamIds = ((membershipResult.data as Array<{ team_id: string }> | null) ?? []).map((row) => row.team_id)
+    if (scopedTeamIds.length === 0) {
+      return ok({ teams: [], athletes: [] })
+    }
+  }
+
+  const teamsQuery = clientResult.client
+    .from("teams")
+    .select("id, name, event_group")
+    .eq("tenant_id", tenantId)
+    .eq("is_archived", false)
+
+  const athletesQuery = clientResult.client
+    .from("athletes")
+    .select("id, team_id, first_name, last_name, event_group, primary_event, readiness, is_active")
+    .eq("tenant_id", tenantId)
+    .eq("is_active", true)
+
+  if (scopedTeamIds) {
+    teamsQuery.in("id", scopedTeamIds)
+    athletesQuery.in("team_id", scopedTeamIds)
+  }
+
   const [{ data: teamsRows, error: teamsError }, { data: athleteRows, error: athletesError }] = await Promise.all([
-    clientResult.client
-      .from("teams")
-      .select("id, name, event_group")
-      .eq("tenant_id", tenantId)
-      .eq("is_archived", false),
-    clientResult.client
-      .from("athletes")
-      .select("id, team_id, first_name, last_name, event_group, primary_event, readiness, is_active")
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true),
+    teamsQuery,
+    athletesQuery,
   ])
 
   if (teamsError) return { ok: false, error: mapPostgrestError(teamsError) }
