@@ -226,7 +226,7 @@ Deno.serve(async (request) => {
     })
   }
 
-  const appLink = `${redirectBaseUrl}/login?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
+  const appLink = `${redirectBaseUrl}/club-admin/claim?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
 
   try {
     await sendWithResend({

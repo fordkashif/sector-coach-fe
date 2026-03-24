@@ -177,7 +177,7 @@ Deno.serve(async (request) => {
     })
   }
 
-  const actionLink = `${redirectBaseUrl}/login?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
+  const actionLink = `${redirectBaseUrl}/club-admin/claim?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
 
   return new Response(JSON.stringify({ actionLink }), {
     status: 200,
