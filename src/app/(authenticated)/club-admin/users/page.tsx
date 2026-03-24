@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   createCoachInvite,
-  createUserProvisioningInvite,
   getClubAdminOpsSnapshot,
   insertAuditEvent,
   reviewAccountRequest,
@@ -38,10 +37,6 @@ export default function ClubAdminUsersPage() {
   const [accountRequests, setAccountRequests] = useState<AccountRequest[]>(() =>
     isSupabaseMode ? [] : loadAccountRequestsSafe(),
   )
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [role, setRole] = useState<UserRole>("athlete")
-  const [teamId, setTeamId] = useState<string>("none")
   const [coachInviteEmail, setCoachInviteEmail] = useState("")
   const [coachInviteTeamId, setCoachInviteTeamId] = useState<string>("none")
   const [teams, setTeams] = useState(() => (isSupabaseMode ? [] : loadTeamsSafe()))
@@ -152,7 +147,7 @@ export default function ClubAdminUsersPage() {
         <div className="space-y-3">
           <div>
             <h1 className="page-intro-title">Users & Roles</h1>
-            <p className="page-intro-copy">Create users, review club admin requests, send coach invites, and control access.</p>
+            <p className="page-intro-copy">Review club admin requests, send invites, and control access. Club admins should never provision users manually.</p>
           </div>
           <ClubAdminNav />
         </div>
@@ -168,91 +163,16 @@ export default function ClubAdminUsersPage() {
         </section>
       ) : null}
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+      <section className="grid gap-5">
         <div className="mobile-card-primary">
           <div className="space-y-1 border-b border-slate-200 pb-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Create User</p>
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Manual Provisioning</h2>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <Input className="h-12 rounded-[16px] border-slate-200 bg-slate-50" placeholder="Full name" value={name} onChange={(event) => setName(event.target.value)} />
-            <Input className="h-12 rounded-[16px] border-slate-200 bg-slate-50" placeholder="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-            <Select value={role} onValueChange={(value) => setRole(value as UserRole)}>
-              <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="club-admin">Club Admin</SelectItem>
-                <SelectItem value="coach">Coach</SelectItem>
-                <SelectItem value="athlete">Athlete</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={teamId} onValueChange={setTeamId}>
-              <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50"><SelectValue placeholder="Team" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No team</SelectItem>
-                {teams.map((team) => (
-                  <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              type="button"
-              className="h-12 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
-              onClick={async () => {
-                if (!name.trim() || !email.trim()) return
-                if (backendMode === "supabase") {
-                  const inviteResult = await createUserProvisioningInvite({
-                    email: email.trim().toLowerCase(),
-                    role,
-                    displayName: name.trim(),
-                    teamId: teamId !== "none" ? teamId : undefined,
-                  })
-                  if (!inviteResult.ok) {
-                    setBackendError(inviteResult.error.message)
-                    return
-                  }
-                    setInvites((current) => [
-                      {
-                        id: inviteResult.data.id,
-                        email: inviteResult.data.email,
-                        teamId: inviteResult.data.teamId,
-                        status: inviteResult.data.status === "revoked" ? "expired" : inviteResult.data.status,
-                        createdAt: inviteResult.data.createdAt,
-                        inviteUrl: inviteResult.data.inviteUrl,
-                      },
-                      ...current,
-                    ])
-                  await emitAudit("user_provision_invite", inviteResult.data.email, `${role}${teamId !== "none" ? ` (${teamId})` : ""}`)
-                  setName("")
-                  setEmail("")
-                  setTeamId("none")
-                  return
-                }
-                const next: ClubUser = {
-                  id: `u-${Date.now()}`,
-                  name: name.trim(),
-                  email: email.trim().toLowerCase(),
-                  role,
-                  status: "active",
-                  teamId: teamId !== "none" ? teamId : undefined,
-                }
-                saveUsers([next, ...users])
-                await emitAudit("user_create", next.email, `${next.role}${next.teamId ? ` (${next.teamId})` : ""}`)
-                setName("")
-                setEmail("")
-                setTeamId("none")
-              }}
-            >
-              Create
-            </Button>
-          </div>
-        </div>
-
-        <div className="mobile-card-primary">
-          <div className="space-y-1 border-b border-slate-200 pb-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Coach Invites</p>
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Send Invite</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Invite Access</p>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Send coach invite</h2>
           </div>
           <div className="mt-4 space-y-3">
+            <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
+              Club admins can invite users into the tenant, but they should never create user accounts manually. Account creation begins from the invite flow only.
+            </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <Input
                 className="h-12 rounded-[16px] border-slate-200 bg-slate-50 sm:col-span-1"

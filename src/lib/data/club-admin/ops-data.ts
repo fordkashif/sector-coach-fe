@@ -73,11 +73,6 @@ function requireSupabaseClient(operation: string): ClientResolution {
   return { ok: true, client }
 }
 
-function getEmailRedirectUrl() {
-  if (typeof window === "undefined") return undefined
-  return `${window.location.origin}/login`
-}
-
 async function getCurrentClubAdminContext(client: SupabaseClient): Promise<Result<ClubAdminContext>> {
   const { data: authSession } = await client.auth.getSession()
   const userId = authSession.session?.user.id
@@ -261,62 +256,6 @@ export async function createCoachInvite(params: {
       role: "coach",
       status: "pending",
       invited_by_user_id: contextResult.data.userId,
-    })
-    .select("id, email, team_id, status, created_at")
-    .single()
-
-  if (error) return { ok: false, error: mapPostgrestError(error) }
-  return ok({
-    id: data.id,
-    email: data.email,
-    teamId: data.team_id ?? undefined,
-    status: data.status,
-    createdAt: data.created_at.slice(0, 10),
-    inviteUrl: `/invite/coach/${data.id}`,
-  })
-}
-
-export async function createUserProvisioningInvite(params: {
-  email: string
-  role: ClubAdminUser["role"]
-  displayName: string
-  teamId?: string
-}): Promise<Result<ClubAdminInvite>> {
-  const clientResult = requireSupabaseClient("createUserProvisioningInvite")
-  if (!clientResult.ok) return clientResult
-
-  const contextResult = await getCurrentClubAdminContext(clientResult.client)
-  if (!contextResult.ok) return contextResult
-
-  const inviteEmail = params.email.trim().toLowerCase()
-  const displayName = params.displayName.trim()
-  if (!inviteEmail || !displayName) return err("VALIDATION", "Name and email are required.")
-
-  const otpResult = await clientResult.client.auth.signInWithOtp({
-    email: inviteEmail,
-    options: {
-      emailRedirectTo: getEmailRedirectUrl(),
-      data: {
-        tenant_id: contextResult.data.tenantId,
-        role: params.role,
-        display_name: displayName,
-        team_id: params.teamId ?? null,
-      },
-    },
-  })
-
-  if (otpResult.error) return err("UNKNOWN", otpResult.error.message, otpResult.error)
-
-  const { data, error } = await clientResult.client
-    .from("coach_invites")
-    .insert({
-      tenant_id: contextResult.data.tenantId,
-      email: inviteEmail,
-      team_id: params.teamId ?? null,
-      role: params.role,
-      status: "pending",
-      invited_by_user_id: contextResult.data.userId,
-      metadata: { display_name: displayName },
     })
     .select("id, email, team_id, status, created_at")
     .single()

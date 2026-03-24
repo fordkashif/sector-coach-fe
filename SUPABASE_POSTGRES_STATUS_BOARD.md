@@ -34,6 +34,7 @@ Companion plan:
 - Local invite-preview testing update: approved platform-admin requests now expose a localhost-only `Copy initial access link` action backed by `platform-admin-preview-club-admin-invite`, so first-login bootstrap can be tested without depending on mailbox access in local development.
 - Club-admin first-access onboarding update: new provisioned club-admin tenants are now gated to `/club-admin/get-started` until password setup and minimum tenant profile completion are persisted in `club_profiles`.
 - Tenant request intake update: request submission now captures job title, organization type, website, region, coach count, athlete count, and desired start date; platform-admin queue/export now surfaces those fields for approval review.
+- Club-admin access-control update: the manual user-provisioning block has been removed from `/club-admin/users`; tenant user creation is now invite-only from the club-admin surface.
 
 ## Verification Snapshot
 
