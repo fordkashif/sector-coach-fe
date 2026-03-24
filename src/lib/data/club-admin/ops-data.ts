@@ -140,6 +140,7 @@ export type ClubAdminProfileRecord = {
   seasonEnd: string
   passwordSetAt?: string | null
   onboardingCompletedAt?: string | null
+  setupGuideDismissedAt?: string | null
 }
 
 export type ClubAdminBillingRecord = {
@@ -466,7 +467,7 @@ export async function getClubAdminProfileRecord(): Promise<Result<ClubAdminProfi
     clientResult.client
       .from("club_profiles")
       .select(
-        "club_name, short_name, primary_color, season_year, season_start, season_end, password_set_at, onboarding_completed_at",
+        "club_name, short_name, primary_color, season_year, season_start, season_end, password_set_at, onboarding_completed_at, setup_guide_dismissed_at",
       )
       .eq("tenant_id", contextResult.data.tenantId)
       .maybeSingle(),
@@ -485,6 +486,7 @@ export async function getClubAdminProfileRecord(): Promise<Result<ClubAdminProfi
     season_end: string
     password_set_at: string | null
     onboarding_completed_at: string | null
+    setup_guide_dismissed_at: string | null
   } | null
 
   return ok({
@@ -496,6 +498,7 @@ export async function getClubAdminProfileRecord(): Promise<Result<ClubAdminProfi
     seasonEnd: row?.season_end ?? `${nowYear}-10-30`,
     passwordSetAt: row?.password_set_at ?? null,
     onboardingCompletedAt: row?.onboarding_completed_at ?? null,
+    setupGuideDismissedAt: row?.setup_guide_dismissed_at ?? null,
   })
 }
 
@@ -559,6 +562,7 @@ export async function completeClubAdminFirstAccessSetup(params: {
       password_set_at: completedAt,
       onboarding_completed_at: completedAt,
       onboarding_completed_by_user_id: contextResult.data.userId,
+      setup_guide_dismissed_at: null,
     },
     { onConflict: "tenant_id" },
   )
@@ -572,6 +576,24 @@ export async function completeClubAdminFirstAccessSetup(params: {
   })
   if (!auditResult.ok) return auditResult
 
+  return ok(undefined)
+}
+
+export async function setClubAdminSetupGuideDismissed(dismissed: boolean): Promise<Result<void>> {
+  const clientResult = requireSupabaseClient("setClubAdminSetupGuideDismissed")
+  if (!clientResult.ok) return clientResult
+
+  const contextResult = await getCurrentClubAdminContext(clientResult.client)
+  if (!contextResult.ok) return contextResult
+
+  const { error } = await clientResult.client
+    .from("club_profiles")
+    .update({
+      setup_guide_dismissed_at: dismissed ? new Date().toISOString() : null,
+    })
+    .eq("tenant_id", contextResult.data.tenantId)
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
   return ok(undefined)
 }
 

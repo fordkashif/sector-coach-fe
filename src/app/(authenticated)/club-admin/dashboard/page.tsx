@@ -6,8 +6,10 @@ import { Link } from "react-router-dom"
 import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import {
+  getClubAdminProfileRecord,
   getClubAdminOpsSnapshot,
   getClubAdminReportSnapshot,
+  setClubAdminSetupGuideDismissed,
 } from "@/lib/data/club-admin/ops-data"
 import type { EventGroup } from "@/lib/mock-data"
 import type {
@@ -72,6 +74,8 @@ export default function ClubAdminDashboardPage() {
   )
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
+  const [setupGuideDismissedAt, setSetupGuideDismissedAt] = useState<string | null>(null)
+  const [setupGuideSaving, setSetupGuideSaving] = useState(false)
 
   useEffect(() => {
     if (!isSupabaseMode) return
@@ -83,6 +87,7 @@ export default function ClubAdminDashboardPage() {
         getClubAdminOpsSnapshot(),
         getClubAdminReportSnapshot(),
       ])
+      const profile = await getClubAdminProfileRecord()
       if (cancelled) return
 
       if (!ops.ok) {
@@ -151,7 +156,13 @@ export default function ClubAdminDashboardPage() {
         )
       }
 
-      if (ops.ok && report.ok) setBackendError(null)
+      if (!profile.ok) {
+        setBackendError((current) => current ?? profile.error.message)
+      } else {
+        setSetupGuideDismissedAt(profile.data.setupGuideDismissedAt ?? null)
+      }
+
+      if (ops.ok && report.ok && profile.ok) setBackendError(null)
       setBackendLoading(false)
     }
 
@@ -284,13 +295,33 @@ export default function ClubAdminDashboardPage() {
     },
     {
       title: "Review tenant settings",
-      body: "Check profile, billing placeholder state, and audit visibility before rollout.",
+      body: "Confirm club profile details, billing placeholder state, and audit visibility before rollout.",
       href: "/club-admin/profile",
       cta: "Open settings",
-      done: false,
+      done: true,
     },
   ] as const
-  const showSetupGuide = kpi.teams === 0 || kpi.activeCoaches === 0 || kpi.users <= 1
+  const setupIncomplete = kpi.teams === 0 || kpi.activeCoaches === 0 || kpi.users <= 1
+  const showSetupGuide = setupIncomplete && !setupGuideDismissedAt
+
+  const handleSetupGuideStateChange = async (dismissed: boolean) => {
+    if (!isSupabaseMode) {
+      setSetupGuideDismissedAt(dismissed ? new Date().toISOString() : null)
+      return
+    }
+
+    setSetupGuideSaving(true)
+    const result = await setClubAdminSetupGuideDismissed(dismissed)
+    setSetupGuideSaving(false)
+
+    if (!result.ok) {
+      setBackendError(result.error.message)
+      return
+    }
+
+    setBackendError(null)
+    setSetupGuideDismissedAt(dismissed ? new Date().toISOString() : null)
+  }
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
@@ -330,6 +361,17 @@ export default function ClubAdminDashboardPage() {
               <p className="max-w-[58ch] text-sm leading-7 text-slate-600">
                 A new club admin should not have to guess the next move. Set up the first team, invite the first coach, then review the tenant settings before handing the workspace to the wider club.
               </p>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={setupGuideSaving}
+                  className="h-11 rounded-full border-slate-200 bg-white px-4 text-slate-950 hover:border-[#1368ff] hover:bg-[#eef5ff] hover:text-slate-950"
+                  onClick={() => void handleSetupGuideStateChange(true)}
+                >
+                  Dismiss for now
+                </Button>
+              </div>
             </div>
             <div className="grid gap-3">
               {setupChecklist.map((item, index) => (
@@ -367,6 +409,34 @@ export default function ClubAdminDashboardPage() {
                   </Button>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {setupIncomplete && setupGuideDismissedAt ? (
+        <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.06)] sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                Continue setup
+              </p>
+              <h2 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">
+                This tenant still has onboarding work left.
+              </h2>
+              <p className="text-sm leading-6 text-slate-600">
+                Resume the setup guide to finish the first team, first coach invite, and basic tenant review.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                disabled={setupGuideSaving}
+                className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
+                onClick={() => void handleSetupGuideStateChange(false)}
+              >
+                Resume setup guide
+              </Button>
             </div>
           </div>
         </section>
