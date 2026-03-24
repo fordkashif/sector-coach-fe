@@ -23,6 +23,59 @@ const defaultProfile: ClubAdminProfileRecord = {
   onboardingCompletedAt: null,
 }
 
+async function diagnoseClaimFailure(
+  supabase: NonNullable<ReturnType<typeof getBrowserSupabaseClient>>,
+  userId: string,
+  email: string | null,
+) {
+  if (!email) {
+    return "This claim session has no email identity. Open the latest claim link again."
+  }
+
+  const normalizedEmail = email.trim().toLowerCase()
+
+  const [profileResult, requestResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("role, tenant_id")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    supabase
+      .from("tenant_provision_requests")
+      .select("status, provisioned_tenant_id")
+      .eq("requestor_email", normalizedEmail)
+      .order("reviewed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  if (profileResult.error) {
+    return `Claim bootstrap could not inspect your profile record: ${profileResult.error.message}`
+  }
+
+  if (profileResult.data && profileResult.data.role !== "club-admin") {
+    return `This account resolved to role "${profileResult.data.role}", not "club-admin".`
+  }
+
+  if (requestResult.error) {
+    return `Claim bootstrap could not inspect the approved request record: ${requestResult.error.message}`
+  }
+
+  if (!requestResult.data) {
+    return "No tenant request was found for this email. Approve a request for this exact email first."
+  }
+
+  if (requestResult.data.status !== "approved") {
+    return `The request for this email is "${requestResult.data.status}", not "approved".`
+  }
+
+  if (!requestResult.data.provisioned_tenant_id) {
+    return "The request was approved, but no tenant has been provisioned for it yet."
+  }
+
+  return "The claim session exists, but the club-admin profile bootstrap did not complete."
+}
+
 export default function ClubAdminClaimPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -85,7 +138,9 @@ export default function ClubAdminClaimPage() {
       const actor = await resolveSessionActor(supabase, session)
       if (cancelled) return
       if (!actor || actor.role !== "club-admin") {
-        setError("This claim link did not resolve to a club-admin account.")
+        const diagnosis = await diagnoseClaimFailure(supabase, session.user.id, session.user.email ?? null)
+        if (cancelled) return
+        setError(diagnosis)
         setLoading(false)
         return
       }
