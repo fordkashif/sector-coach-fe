@@ -448,7 +448,7 @@ export default function CoachTestWeekPageClient({
 
   if (view === "list") {
     return (
-      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
         <section className="space-y-4 pt-1">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-2">
@@ -573,7 +573,7 @@ export default function CoachTestWeekPageClient({
       }
     const hasResults = detailData.phase === "results"
     return (
-      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
         <section className="space-y-4 pt-1">
           <div className="space-y-2">
             <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">
@@ -812,7 +812,7 @@ export default function CoachTestWeekPageClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
       <header className="space-y-2 pt-1">
         <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">
           Create Test Week

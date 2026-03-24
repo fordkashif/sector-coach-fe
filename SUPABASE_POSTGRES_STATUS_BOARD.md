@@ -37,8 +37,7 @@ Companion plan:
 - Club-admin access-control update: the manual user-provisioning block has been removed from `/club-admin/users`; tenant user creation is now invite-only from the club-admin surface.
 - Club-admin first-run UX update: `/club-admin/dashboard` now shows a guided first-steps panel for new tenants so club admins have an explicit path through teams, invites, and settings instead of landing on a cold dashboard.
 - Club-admin setup persistence update: first-run walkthrough dismissal is now stored on `club_profiles.setup_guide_dismissed_at`, and dismissed tenants get a compact Resume setup guide card until onboarding-relevant tenant state is no longer incomplete.
-
-
+- Team-surface ownership update: the rich team operations overview is now the club-admin teams surface, while coaches are redirected off `/coach/teams` into their specific `/coach/teams/:teamId` detail view.
 - Athlete claim-flow update: athlete invites no longer assume an already-authenticated tenant athlete. New invites now target a dedicated athlete claim route with public preview, server-owned account claim, password setup, invite acceptance, and a first-run athlete guide.
 
 ## Verification Snapshot

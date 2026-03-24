@@ -137,7 +137,7 @@ export default function PlatformAdminAuditPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
       <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(25,12,45,0.98)_0%,rgba(15,23,42,0.94)_58%,rgba(6,78,59,0.82)_100%)] px-5 py-6 text-white shadow-[0_24px_80px_rgba(5,12,24,0.28)] sm:px-6 lg:px-8">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
           <div className="space-y-3">

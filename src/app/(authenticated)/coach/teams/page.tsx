@@ -2,7 +2,7 @@
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { FilePasteIcon, Link01Icon, QrCodeIcon, UserMultiple02Icon } from "@hugeicons/core-free-icons"
-import { Link } from "react-router-dom"
+import { Link, Navigate } from "react-router-dom"
 import { useEffect, useMemo, useState } from "react"
 import { EventGroupBadge } from "@/components/badges"
 import { Button } from "@/components/ui/button"
@@ -22,11 +22,17 @@ import { COACH_TEAM_COOKIE, getCookieValue } from "@/lib/auth-session"
 import { getCoachScope } from "@/lib/coach-scope"
 import { getCoachTeamsSnapshotForCurrentUser } from "@/lib/data/coach/teams-data"
 import { createAthleteInviteForCurrentCoach } from "@/lib/data/athlete/invite-data"
+import {
+  createClubAdminTeam,
+  getClubAdminAssignableCoachOptions,
+  type ClubAdminAssignableCoachOption,
+} from "@/lib/data/club-admin/ops-data"
 import { useRole } from "@/lib/role-context"
 import { getBackendMode } from "@/lib/supabase/config"
-import type { Athlete, Team } from "@/lib/mock-data"
+import type { Athlete, EventGroup, Team } from "@/lib/mock-data"
 
 const MOCK_COACH_TEAM_STORAGE_KEY = "pacelab:mock-coach-team"
+const teamEventGroupOptions: EventGroup[] = ["Sprint", "Mid", "Distance", "Jumps", "Throws"]
 
 function getTeamDisciplineLabel(team: Pick<Team, "disciplines" | "eventGroup"> | null | undefined) {
   if (!team) return ""
@@ -38,10 +44,17 @@ export default function CoachTeamsPage() {
   const backendMode = getBackendMode()
   const isSupabaseMode = backendMode === "supabase"
   const { role } = useRole()
+  const isCoachViewer = role === "coach"
+  const isClubAdminViewer = role === "club-admin"
   const coachScope = useMemo(() => getCoachScope(role === "coach" ? role : "club-admin"), [role])
   const [backendTeams, setBackendTeams] = useState<Team[]>([])
   const [backendAthletes, setBackendAthletes] = useState<Athlete[]>([])
   const [generatedInviteLinks, setGeneratedInviteLinks] = useState<Record<string, string>>({})
+  const [assignableCoaches, setAssignableCoaches] = useState<ClubAdminAssignableCoachOption[]>([])
+  const [newTeamName, setNewTeamName] = useState("")
+  const [newTeamEventGroup, setNewTeamEventGroup] = useState<EventGroup>("Sprint")
+  const [newTeamLeadCoachUserId, setNewTeamLeadCoachUserId] = useState("none")
+  const [creatingTeam, setCreatingTeam] = useState(false)
   const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
   const [backendError, setBackendError] = useState<string | null>(null)
   const [coachTeamId, setCoachTeamId] = useState(() => {
@@ -72,31 +85,40 @@ export default function CoachTeamsPage() {
 
     const loadSnapshot = async () => {
       setBackendLoading(true)
-      const result = await getCoachTeamsSnapshotForCurrentUser()
+      const [result, coachOptionsResult] = await Promise.all([
+        getCoachTeamsSnapshotForCurrentUser(),
+        isClubAdminViewer ? getClubAdminAssignableCoachOptions() : Promise.resolve(null),
+      ])
       if (cancelled) return
       if (!result.ok) {
         setBackendError(result.error.message)
         setBackendLoading(false)
         return
       }
+      if (coachOptionsResult && !coachOptionsResult.ok) {
+        setBackendError(coachOptionsResult.error.message)
+        setBackendLoading(false)
+        return
+      }
       setBackendError(null)
       setBackendTeams(result.data.teams)
       setBackendAthletes(result.data.athletes)
+      if (coachOptionsResult?.ok) setAssignableCoaches(coachOptionsResult.data)
       setBackendLoading(false)
-      if (!coachTeamId && result.data.teams[0]?.id && role === "coach") setCoachTeamId(result.data.teams[0].id)
+      if (!coachTeamId && result.data.teams[0]?.id && isCoachViewer) setCoachTeamId(result.data.teams[0].id)
     }
 
     void loadSnapshot()
     return () => {
       cancelled = true
     }
-  }, [coachTeamId, isSupabaseMode, role])
+  }, [coachTeamId, isClubAdminViewer, isCoachViewer, isSupabaseMode])
 
   const teamsSource = backendTeams
   const athletesSource = backendAthletes
 
   const visibleTeams = useMemo(() => {
-    if (role !== "coach") return teamsSource
+    if (!isCoachViewer) return teamsSource
     if (isSupabaseMode) {
       return coachTeamId ? teamsSource.filter((team) => team.id === coachTeamId) : teamsSource
     }
@@ -104,15 +126,30 @@ export default function CoachTeamsPage() {
       return teamsSource.filter((team) => team.id === coachTeamId)
     }
     return teamsSource
-  }, [coachScope.isScopedCoach, coachTeamId, isSupabaseMode, role, teamsSource])
+  }, [coachScope.isScopedCoach, coachTeamId, isCoachViewer, isSupabaseMode, teamsSource])
 
   const totalAthletes = visibleTeams.reduce((sum, team) => sum + team.athleteCount, 0)
-  const eventGroups = new Set(visibleTeams.map((team) => team.eventGroup))
+  const visibleEventGroups = Array.from(new Set(visibleTeams.map((team) => team.eventGroup)))
   const scopedTeam = visibleTeams[0] ?? null
   const readinessAlerts = visibleTeams.reduce(
     (sum, team) => sum + athletesSource.filter((athlete) => athlete.teamId === team.id && athlete.readiness !== "green").length,
     0,
   )
+  const selectedLeadCoach = assignableCoaches.find((coach) => coach.userId === newTeamLeadCoachUserId)
+
+  if (isCoachViewer && !backendLoading) {
+    if (visibleTeams[0]?.id) {
+      return <Navigate to={`/coach/teams/${visibleTeams[0].id}`} replace />
+    }
+
+    return (
+      <div className="mx-auto w-full max-w-5xl p-4 sm:p-6">
+        <section className="rounded-[28px] border border-dashed border-slate-300 bg-white px-5 py-8 text-sm text-slate-500 shadow-sm">
+          No team is assigned for this coach profile.
+        </section>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-full bg-[linear-gradient(180deg,#081120_0%,#0b1424_280px,#f3f6fb_280px,#eef3f8_100%)]">
@@ -121,15 +158,16 @@ export default function CoachTeamsPage() {
           <div className="grid gap-8 px-5 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,420px)] lg:px-8 lg:py-9 xl:px-10">
             <div className="space-y-6">
               <div className="space-y-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6fb6ff]">Coach Teams</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6fb6ff]">
+                  {isClubAdminViewer ? "Team Operations" : "Coach Teams"}
+                </p>
                 <h1 className="max-w-[11ch] text-[clamp(2.35rem,6vw,4.9rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-white">
-                  Team operations with clearer signal and less admin clutter.
+                  {isClubAdminViewer ? "Operate every team from one view." : "Team operations with clearer signal and less admin clutter."}
                 </h1>
                 <p className="max-w-[58ch] text-sm leading-7 text-white/72 sm:text-base">
-                  Review roster load, invite flow, and current group health from one surface.
-                  {role === "coach"
-                    ? ` ${scopedTeam ? `You are currently scoped to ${scopedTeam.name}.` : "You are currently scoped to your assigned group."}`
-                    : " All visible groups stay in one operating view."}
+                  {isClubAdminViewer
+                    ? "Create teams, review roster load, manage athlete invite flow, and keep group health visible from one operating surface."
+                    : "Review roster load, invite flow, and current group health from one surface."}
                 </p>
               </div>
 
@@ -157,7 +195,7 @@ export default function CoachTeamsPage() {
               <div className="mt-4 space-y-3">
                 <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 text-sm text-white/72">
                   <span>Event groups</span>
-                  <span className="font-semibold text-white">{eventGroups.size}</span>
+                  <span className="font-semibold text-white">{visibleEventGroups.length}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 text-sm text-white/72">
                   <span>Primary team</span>
@@ -177,7 +215,95 @@ export default function CoachTeamsPage() {
           </section>
         ) : null}
 
-        {!isSupabaseMode && role === "coach" && coachScope.allowTeamSwitcher ? (
+        {isClubAdminViewer && isSupabaseMode ? (
+          <section className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
+            <div className="space-y-1 border-b border-slate-200 pb-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Create team</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Provision a new group from this surface</h2>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_220px_280px_180px]">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-950">Team name</Label>
+                <Input
+                  className="h-12 rounded-[16px] border-slate-200 bg-slate-50"
+                  value={newTeamName}
+                  onChange={(event) => setNewTeamName(event.target.value)}
+                  placeholder="Sprint Group B"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-950">Event group</Label>
+                <Select value={newTeamEventGroup} onValueChange={(value) => setNewTeamEventGroup(value as EventGroup)}>
+                  <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teamEventGroupOptions.map((group) => (
+                      <SelectItem key={group} value={group}>
+                        {group}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-950">Lead coach</Label>
+                <Select value={newTeamLeadCoachUserId} onValueChange={setNewTeamLeadCoachUserId}>
+                  <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {assignableCoaches.map((coach) => (
+                      <SelectItem key={coach.userId} value={coach.userId}>
+                        {coach.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  disabled={creatingTeam || !newTeamName.trim()}
+                  className="h-12 w-full rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#2f80ff_100%)] px-5 text-white shadow-[0_12px_32px_rgba(28,101,255,0.22)] hover:opacity-95"
+                  onClick={async () => {
+                    setCreatingTeam(true)
+                    const result = await createClubAdminTeam({
+                      name: newTeamName.trim(),
+                      eventGroup: newTeamEventGroup,
+                      leadCoachUserId: newTeamLeadCoachUserId === "none" ? null : newTeamLeadCoachUserId,
+                      leadCoachLabel: newTeamLeadCoachUserId === "none" ? null : selectedLeadCoach?.label ?? null,
+                    })
+                    setCreatingTeam(false)
+
+                    if (!result.ok) {
+                      setBackendError(result.error.message)
+                      return
+                    }
+
+                    const refreshResult = await getCoachTeamsSnapshotForCurrentUser()
+                    if (!refreshResult.ok) {
+                      setBackendError(refreshResult.error.message)
+                      return
+                    }
+
+                    setBackendTeams(refreshResult.data.teams)
+                    setBackendAthletes(refreshResult.data.athletes)
+                    setNewTeamName("")
+                    setNewTeamEventGroup("Sprint")
+                    setNewTeamLeadCoachUserId("none")
+                    setBackendError(null)
+                  }}
+                >
+                  {creatingTeam ? "Creating..." : "Create team"}
+                </Button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {!isSupabaseMode && isCoachViewer && coachScope.allowTeamSwitcher ? (
           <section className="rounded-[28px] border border-slate-200 bg-white/85 px-5 py-4 shadow-sm backdrop-blur-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-1">
@@ -216,7 +342,7 @@ export default function CoachTeamsPage() {
 
         {visibleTeams.length === 0 ? (
           <section className="rounded-[28px] border border-dashed border-slate-300 bg-white px-5 py-8 text-sm text-slate-500 shadow-sm">
-            No team is assigned for this coach profile.
+            {isClubAdminViewer ? "No teams have been created yet." : "No team is assigned for this coach profile."}
           </section>
         ) : null}
 

@@ -255,7 +255,7 @@ export default function CoachReportsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
+    <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
       <section className="space-y-4 pt-1">
         {backendError ? (
           <div className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

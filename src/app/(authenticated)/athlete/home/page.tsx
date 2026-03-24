@@ -256,7 +256,7 @@ export default function AthleteHomePage() {
   }))
 
   return (
-    <div className="mx-auto min-h-[calc(100dvh-env(safe-area-inset-top)-2rem)] w-full max-w-7xl px-4 pb-6 pt-4 sm:min-h-0 sm:p-6">
+    <div className="mx-auto min-h-[calc(100dvh-env(safe-area-inset-top)-2rem)] w-full max-w-8xl px-4 pb-6 pt-4 sm:min-h-0 sm:p-6">
       <section className="flex min-h-full max-w-xl flex-col">
         <div className="flex min-h-full flex-col">
           {backendError ? (

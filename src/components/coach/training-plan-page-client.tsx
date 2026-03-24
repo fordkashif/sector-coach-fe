@@ -1210,7 +1210,7 @@ export default function CoachTrainingPlanPageClient({
 
   if (view === "list") {
     return (
-      <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+      <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
         <section className="space-y-4 pt-1">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-2">

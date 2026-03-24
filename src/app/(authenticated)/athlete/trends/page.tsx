@@ -144,7 +144,7 @@ export default function AthleteTrendsPage() {
   const latestPoint = trend[trend.length - 1]
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
       <section className="space-y-2">
         <h1 className="text-[2.15rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.5rem]">
           Progress

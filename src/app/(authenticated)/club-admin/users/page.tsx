@@ -145,7 +145,7 @@ export default function ClubAdminUsersPage() {
   }, [isSupabaseMode])
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
       <section className="page-intro">
         <div className="space-y-3">
           <div>

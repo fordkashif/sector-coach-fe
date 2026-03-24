@@ -106,7 +106,7 @@ export default function ClubAdminBillingPage() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:space-y-6 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
       <section className="page-intro">
         <div className="space-y-3">
           <div>
@@ -209,7 +209,7 @@ export default function ClubAdminBillingPage() {
             ))}
             <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Payment method</p>
-              <p className="mt-1.5 text-lg font-semibold tracking-[-0.03em] text-slate-950">•••• {billing.paymentMethodLast4}</p>
+              <p className="mt-1.5 text-lg font-semibold tracking-[-0.03em] text-slate-950">ï¿½ï¿½ï¿½ï¿½ {billing.paymentMethodLast4}</p>
             </div>
           </div>
         </div>

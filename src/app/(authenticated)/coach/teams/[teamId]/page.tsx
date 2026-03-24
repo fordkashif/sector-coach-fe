@@ -82,7 +82,7 @@ export default function CoachTeamDetailPage() {
   return (
     <>
       {backendError ? (
-        <div className="mx-auto mt-4 max-w-7xl rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mx-auto mt-4 max-w-8xl rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Backend sync issue: {backendError}
         </div>
       ) : null}

@@ -142,7 +142,7 @@ export function CoachAthleteDetailContent({ athlete, data }: CoachAthleteDetailC
   ]
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
       <header className="space-y-4 pt-1">
         <div className="flex items-start gap-4">
           <div className="flex size-16 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-lg font-semibold text-white shadow-[0_14px_30px_rgba(31,140,255,0.24)]">
