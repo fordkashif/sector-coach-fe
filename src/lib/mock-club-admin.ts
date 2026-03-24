@@ -3,7 +3,7 @@ import { tenantStorageKey } from "@/lib/tenant-storage"
 
 export type UserRole = "club-admin" | "coach" | "athlete"
 export type UserStatus = "active" | "disabled"
-export type TeamStatus = "active" | "archived"
+export type TeamStatus = "draft" | "active" | "archived"
 
 export interface ClubProfile {
   clubName: string
@@ -29,6 +29,7 @@ export interface ClubTeam {
   eventGroup: EventGroup
   status: TeamStatus
   coachEmail?: string
+  coachUserId?: string
 }
 
 export interface CoachInvite {
@@ -83,8 +84,8 @@ export const defaultClubUsers: ClubUser[] = [
 ]
 
 export const defaultClubTeams: ClubTeam[] = [
-  { id: "t1", name: "Sprint Group", eventGroup: "Sprint", status: "active", coachEmail: "coach.rivera@pacelab.local" },
-  { id: "t2", name: "Distance Group", eventGroup: "Distance", status: "active", coachEmail: "coach.smith@pacelab.local" },
+  { id: "t1", name: "Sprint Group", eventGroup: "Sprint", status: "active", coachEmail: "coach.rivera@pacelab.local", coachUserId: "u-coach-1" },
+  { id: "t2", name: "Distance Group", eventGroup: "Distance", status: "active", coachEmail: "coach.smith@pacelab.local", coachUserId: "u-coach-2" },
   { id: "t3", name: "Jumps Group", eventGroup: "Jumps", status: "active" },
   { id: "t4", name: "Throws Group", eventGroup: "Throws", status: "active" },
 ]

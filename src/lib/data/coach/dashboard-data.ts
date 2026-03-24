@@ -148,7 +148,12 @@ export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOp
     return ok({ teams: [], athletes: [], prs: [], tests: [], trendSeries: {} })
   }
 
-  const teamsQuery = clientResult.client.from("teams").select("id, name, event_group").eq("tenant_id", tenantId).eq("is_archived", false)
+  const teamsQuery = clientResult.client
+    .from("teams")
+    .select("id, name, event_group")
+    .eq("tenant_id", tenantId)
+    .eq("status", "active")
+    .eq("is_archived", false)
   const athletesQuery = clientResult.client
     .from("athletes")
     .select("id, team_id, first_name, last_name, event_group, primary_event, readiness, is_active")

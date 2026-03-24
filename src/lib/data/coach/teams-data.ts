@@ -78,6 +78,7 @@ export async function getCoachTeamsSnapshotForCurrentUser(): Promise<Result<Coac
     .from("teams")
     .select("id, name, event_group")
     .eq("tenant_id", tenantId)
+    .eq("status", "active")
     .eq("is_archived", false)
 
   const athletesQuery = clientResult.client

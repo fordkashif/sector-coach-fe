@@ -50,7 +50,7 @@ export type ClubAdminTeamRecord = {
   id: string
   name: string
   eventGroup: string | null
-  status: "active" | "archived"
+  status: "draft" | "active" | "archived"
   leadCoachUserId?: string
   leadCoachLabel?: string
   currentUserAssignedAsCoach?: boolean
@@ -117,7 +117,7 @@ export type ClubAdminReportSnapshot = {
     id: string
     name: string
     eventGroup: string | null
-    status: "active" | "archived"
+    status: "draft" | "active" | "archived"
   }>
   athletes: Array<{
     id: string
@@ -174,7 +174,11 @@ export async function getClubAdminOpsSnapshot(): Promise<Result<ClubAdminOpsSnap
       .select("user_id, role, display_name, is_active")
       .eq("tenant_id", contextResult.data.tenantId)
       .order("created_at", { ascending: false }),
-    clientResult.client.from("teams").select("id, name").eq("tenant_id", contextResult.data.tenantId).eq("is_archived", false),
+    clientResult.client
+      .from("teams")
+      .select("id, name")
+      .eq("tenant_id", contextResult.data.tenantId)
+      .eq("status", "active"),
     clientResult.client
       .from("coach_invites")
       .select("id, email, team_id, status, created_at")
@@ -375,7 +379,7 @@ export async function getClubAdminReportSnapshot(): Promise<Result<ClubAdminRepo
   if (!contextResult.ok) return contextResult
 
   const [teamsResult, athletesResult, prsResult] = await Promise.all([
-    clientResult.client.from("teams").select("id, name, event_group, is_archived").eq("tenant_id", contextResult.data.tenantId),
+    clientResult.client.from("teams").select("id, name, event_group, status").eq("tenant_id", contextResult.data.tenantId),
     clientResult.client.from("athletes").select("id, first_name, last_name, readiness").eq("tenant_id", contextResult.data.tenantId),
     clientResult.client
       .from("pr_records")
@@ -393,12 +397,12 @@ export async function getClubAdminReportSnapshot(): Promise<Result<ClubAdminRepo
       id: string
       name: string
       event_group: string | null
-      is_archived: boolean
+      status: ClubAdminReportSnapshot["teams"][number]["status"]
     }> | null) ?? []).map((row) => ({
       id: row.id,
       name: row.name,
       eventGroup: row.event_group,
-      status: row.is_archived ? "archived" : "active",
+      status: row.status,
     })),
     athletes: ((athletesResult.data as Array<{
       id: string
@@ -676,7 +680,7 @@ export async function getClubAdminTeamsSnapshot(): Promise<Result<ClubAdminTeamR
   const [teamsResult, membershipsResult] = await Promise.all([
     clientResult.client
       .from("teams")
-      .select("id, name, event_group, is_archived")
+      .select("id, name, event_group, status")
       .eq("tenant_id", contextResult.data.tenantId)
       .order("created_at", { ascending: false }),
     clientResult.client
@@ -743,7 +747,7 @@ export async function getClubAdminTeamsSnapshot(): Promise<Result<ClubAdminTeamR
       id: string
       name: string
       event_group: string | null
-      is_archived: boolean
+      status: ClubAdminTeamRecord["status"]
     }> | null) ?? []).map((row) => ({
       ...(function () {
         const leadMembership = leadMembershipByTeamId.get(row.id)
@@ -768,7 +772,7 @@ export async function getClubAdminTeamsSnapshot(): Promise<Result<ClubAdminTeamR
       id: row.id,
       name: row.name,
       eventGroup: row.event_group,
-      status: row.is_archived ? "archived" : "active",
+      status: row.status,
       currentUserAssignedAsCoach: assignedTeamIds.has(row.id),
     })),
   )
@@ -849,9 +853,10 @@ export async function createClubAdminTeam(params: {
       tenant_id: contextResult.data.tenantId,
       name: teamName,
       event_group: params.eventGroup ?? null,
+      status: "active",
       is_archived: false,
     })
-    .select("id, name, event_group, is_archived")
+    .select("id, name, event_group, status")
     .single()
 
   if (error) return { ok: false, error: mapPostgrestError(error) }
@@ -876,7 +881,7 @@ export async function createClubAdminTeam(params: {
     id: data.id,
     name: data.name,
     eventGroup: data.event_group,
-    status: data.is_archived ? "archived" : "active",
+    status: data.status,
     leadCoachUserId: assignedLeadCoachUserId ?? undefined,
     leadCoachLabel: params.leadCoachLabel ?? undefined,
     currentUserAssignedAsCoach: assignedLeadCoachUserId === contextResult.data.userId,
@@ -887,6 +892,7 @@ export async function updateClubAdminTeam(params: {
   teamId: string
   name: string
   eventGroup?: string | null
+  status: ClubAdminTeamRecord["status"]
 }): Promise<Result<void>> {
   const clientResult = requireSupabaseClient("updateClubAdminTeam")
   if (!clientResult.ok) return clientResult
@@ -902,6 +908,9 @@ export async function updateClubAdminTeam(params: {
     .update({
       name: teamName,
       event_group: params.eventGroup ?? null,
+      status: params.status,
+      is_archived: params.status === "archived",
+      archived_at: params.status === "archived" ? new Date().toISOString() : null,
     })
     .eq("id", params.teamId)
     .eq("tenant_id", contextResult.data.tenantId)
@@ -964,6 +973,7 @@ export async function setClubAdminTeamArchived(params: {
   const { error } = await clientResult.client
     .from("teams")
     .update({
+      status: params.archived ? "archived" : "active",
       is_archived: params.archived,
       archived_at: params.archived ? new Date().toISOString() : null,
     })
