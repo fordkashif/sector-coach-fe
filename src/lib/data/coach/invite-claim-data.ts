@@ -108,6 +108,32 @@ export async function completeCurrentCoachOnboarding(params: {
   return ok(undefined)
 }
 
+export async function claimCoachInviteAccount(params: {
+  inviteId: string
+  email: string
+  password: string
+  displayName: string
+}): Promise<Result<void>> {
+  const clientResult = requireSupabaseClient("claimCoachInviteAccount")
+  if (!clientResult.ok) return clientResult
+
+  const { data, error } = await clientResult.data.functions.invoke("claim-coach-invite-account", {
+    body: {
+      inviteId: params.inviteId,
+      email: params.email.trim().toLowerCase(),
+      password: params.password.trim(),
+      displayName: params.displayName.trim(),
+    },
+  })
+
+  if (error) return err("UNKNOWN", error.message, error)
+  if (data && typeof data === "object" && "error" in data && typeof data.error === "string") {
+    return err("UNKNOWN", data.error)
+  }
+
+  return ok(undefined)
+}
+
 export async function setCurrentCoachSetupGuideDismissed(dismissed: boolean): Promise<Result<void>> {
   const clientResult = requireSupabaseClient("setCurrentCoachSetupGuideDismissed")
   if (!clientResult.ok) return clientResult

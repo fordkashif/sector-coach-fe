@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { acceptCoachInviteForCurrentUser } from "@/lib/data/club-admin/ops-data"
 import {
+  claimCoachInviteAccount,
   completeCurrentCoachOnboarding,
   getCurrentCoachOnboardingState,
   getPublicCoachInvitePreview,
@@ -79,7 +80,7 @@ export default function CoachInviteAcceptPage() {
       if (!sessionData.session) {
         if (!cancelled) {
           setStage("needs-auth")
-          setMessage("This coach invite is ready. Sign in if you already have an account, or create your coach account here.")
+          setMessage("This coach invite is ready. Sign in if you already have an account, or claim your coach account here.")
           setFullName(invitePreview.email.split("@")[0] || "")
         }
         return
@@ -143,7 +144,7 @@ export default function CoachInviteAcceptPage() {
     if (!preview) return null
     const parts = [preview.organizationName]
     if (preview.teamName) parts.push(preview.teamName)
-    return parts.join(" • ")
+    return parts.join(" | ")
   }, [preview])
 
   const handleFirstTimeSetup = async () => {
@@ -170,34 +171,27 @@ export default function CoachInviteAcceptPage() {
     setSubmitting(true)
     setError(null)
 
-    const signUpResult = await supabase.auth.signUp({
+    const claimResult = await claimCoachInviteAccount({
+      inviteId,
       email: preview.email.trim().toLowerCase(),
       password: password.trim(),
-      options: {
-        data: {
-          display_name: fullName.trim(),
-        },
-      },
+      displayName: fullName.trim(),
     })
 
-    let session = signUpResult.data.session
-    if (signUpResult.error) {
+    if (!claimResult.ok) {
       setSubmitting(false)
-      setError(signUpResult.error.message)
+      setError(claimResult.error.message)
       return
     }
 
-    if (!session) {
-      const signInResult = await supabase.auth.signInWithPassword({
-        email: preview.email.trim().toLowerCase(),
-        password: password.trim(),
-      })
-      if (signInResult.error || !signInResult.data.session) {
-        setSubmitting(false)
-        setError(signInResult.error?.message ?? "Coach account created, but no session was established.")
-        return
-      }
-      session = signInResult.data.session
+    const signInResult = await supabase.auth.signInWithPassword({
+      email: preview.email.trim().toLowerCase(),
+      password: password.trim(),
+    })
+    if (signInResult.error || !signInResult.data.session) {
+      setSubmitting(false)
+      setError(signInResult.error?.message ?? "Coach account claimed, but no session was established.")
+      return
     }
 
     const acceptResult = await acceptCoachInviteForCurrentUser(inviteId)
@@ -248,9 +242,7 @@ export default function CoachInviteAcceptPage() {
           <p className="max-w-2xl text-sm leading-6 text-slate-600">
             This invite should feel like part of PaceLab. Accept the team assignment, complete your first-time setup if needed, and then enter the coach workspace with the right context.
           </p>
-          {inviteSummary ? (
-            <p className="text-sm font-medium text-slate-950">{inviteSummary}</p>
-          ) : null}
+          {inviteSummary ? <p className="text-sm font-medium text-slate-950">{inviteSummary}</p> : null}
         </div>
       </section>
 
@@ -356,7 +348,7 @@ export default function CoachInviteAcceptPage() {
                 />
               </div>
               <p className="text-sm text-slate-500">
-                New coaches create their account here. Existing coaches who already signed in only need to complete their profile details.
+                New coaches claim their account directly from this invite. Existing coaches who already signed in only need to complete their profile details.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -380,7 +372,7 @@ export default function CoachInviteAcceptPage() {
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="font-medium text-slate-950">2. Complete first-time setup if you are new</p>
-                <p className="mt-1">New coaches need a password and a real profile before the workspace is useful.</p>
+                <p className="mt-1">The invite itself now acts as the claim proof, so first-time setup does not depend on a separate email-confirmation loop.</p>
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="font-medium text-slate-950">3. Continue into the coach workspace</p>
@@ -393,3 +385,4 @@ export default function CoachInviteAcceptPage() {
     </main>
   )
 }
+

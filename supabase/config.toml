@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.platform-admin-preview-club-admin-invite]
 verify_jwt = false
+
+[functions.claim-coach-invite-account]
+verify_jwt = false
