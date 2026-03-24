@@ -149,6 +149,23 @@ export default function LoginPage() {
         return
       }
 
+      const tokenHash = currentUrl.searchParams.get("token_hash")
+      const tokenType = currentUrl.searchParams.get("type")
+      if (tokenHash && tokenType) {
+        const verifyResult = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: tokenType as "magiclink",
+        })
+        if (verifyResult.error) {
+          setError(verifyResult.error.message)
+          return
+        }
+
+        currentUrl.searchParams.delete("token_hash")
+        currentUrl.searchParams.delete("type")
+        window.history.replaceState({}, document.title, currentUrl.toString())
+      }
+
       const callbackCode = currentUrl.searchParams.get("code")
       if (callbackCode) {
         const exchangeResult = await supabase.auth.exchangeCodeForSession(callbackCode)

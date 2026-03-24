@@ -17,11 +17,11 @@ type PreviewPayload = {
 
 type GenerateLinkResponse = {
   properties?: {
-    action_link?: string
-    actionLink?: string
+    hashed_token?: string
+    hashedToken?: string
   }
-  action_link?: string
-  actionLink?: string
+  hashed_token?: string
+  hashedToken?: string
 }
 
 function normalizeOrigin(value: string | null | undefined) {
@@ -163,19 +163,21 @@ Deno.serve(async (request) => {
   }
 
   const data = generateResult.data as GenerateLinkResponse | null
-  const actionLink =
-    data?.properties?.action_link ??
-    data?.properties?.actionLink ??
-    data?.action_link ??
-    data?.actionLink ??
+  const tokenHash =
+    data?.properties?.hashed_token ??
+    data?.properties?.hashedToken ??
+    data?.hashed_token ??
+    data?.hashedToken ??
     null
 
-  if (!actionLink) {
-    return new Response(JSON.stringify({ error: "Auth generateLink did not return an action link." }), {
+  if (!tokenHash) {
+    return new Response(JSON.stringify({ error: "Auth generateLink did not return a token hash." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   }
+
+  const actionLink = `${redirectBaseUrl}/login?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
 
   return new Response(JSON.stringify({ actionLink }), {
     status: 200,
