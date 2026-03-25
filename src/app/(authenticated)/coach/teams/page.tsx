@@ -159,7 +159,7 @@ export default function CoachTeamsPage() {
           : "min-h-full bg-[linear-gradient(180deg,#081120_0%,#0b1424_280px,#f3f6fb_280px,#eef3f8_100%)]"
       }
     >
-      <div className="mx-auto w-full max-w-[1440px] space-y-6 px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 lg:px-8">
+      <div className="mx-auto w-full max-w-8xl space-y-6 px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 lg:px-8">
         {isClubAdminViewer ? (
           <section className="px-1 py-1 sm:px-2 lg:px-3">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">

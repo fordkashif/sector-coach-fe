@@ -62,7 +62,7 @@ export default function ClubAdminProfilePage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
           <div className="space-y-4">
             <h1 className="max-w-[16ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
-              Club identity that stays consistent across the tenant.
+              Club identity settings.
             </h1>
             <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
               Manage branding, season configuration, and the club identity used across the tenant.
