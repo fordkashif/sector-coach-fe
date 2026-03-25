@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { BarChart, PieChart } from "@mui/x-charts"
 import { Button } from "@/components/ui/button"
+import { useClubAdmin } from "@/lib/club-admin-context"
 import { loadClubInvites, loadClubTeams, loadClubUsers } from "../state"
 import type { Athlete, PR } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import {
-  getClubAdminOpsSnapshot,
-  getClubAdminReportSnapshot,
   insertAuditEvent,
 } from "@/lib/data/club-admin/ops-data"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -58,6 +57,7 @@ function downloadCsv(filename: string, rows: string[][]) {
 export default function ClubAdminReportsPage() {
   const backendMode = getBackendMode()
   const isSupabaseMode = backendMode === "supabase"
+  const clubAdmin = useClubAdmin()
   type AthleteRow = {
     id: string
     name: string
@@ -85,71 +85,66 @@ export default function ClubAdminReportsPage() {
   }>>(() =>
     [],
   )
-  const [backendLoading, setBackendLoading] = useState(isSupabaseMode)
-  const [backendError, setBackendError] = useState<string | null>(null)
+  const [backendLoading, setBackendLoading] = useState(
+    isSupabaseMode && (!clubAdmin.opsSnapshot || !clubAdmin.reportSnapshot),
+  )
+  const [backendError, setBackendError] = useState<string | null>(
+    clubAdmin.opsError ?? clubAdmin.reportError,
+  )
 
   useEffect(() => {
     if (!isSupabaseMode) return
-    let cancelled = false
-
-    const load = async () => {
-      setBackendLoading(true)
-      const [ops, report] = await Promise.all([getClubAdminOpsSnapshot(), getClubAdminReportSnapshot()])
-      if (cancelled) return
-
-      if (!ops.ok) {
-        setBackendError(ops.error.message)
-      } else {
-        setUsers(
-          ops.data.users.map((user) => ({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            status: user.status,
-            teamId: user.teamId,
-          })),
-        )
-        setInvites(
-          ops.data.invites.map((invite) => ({
-            id: invite.id,
-            email: invite.email,
-            teamId: invite.teamId,
-            status: invite.status === "revoked" ? "expired" : invite.status,
-            createdAt: invite.createdAt,
-          })),
-        )
-      }
-
-      if (!report.ok) {
-        setBackendError((current) => current ?? report.error.message)
-      } else {
-        setTeams(
-          report.data.teams.map((team) => ({
-            id: team.id,
-            name: team.name,
-            eventGroup: (team.eventGroup as "Sprint" | "Mid" | "Distance" | "Jumps" | "Throws") ?? "Sprint",
-            status: team.status,
-          })),
-        )
-        setAthleteRows(
-          report.data.athletes.map((athlete) => ({
-            id: athlete.id,
-            name: athlete.name,
-            readiness: athlete.readiness,
-            adherenceLabel: "-",
-          })),
-        )
-        setPrRows(report.data.prRows)
-      }
-      setBackendLoading(false)
+    setBackendLoading(clubAdmin.opsLoading || clubAdmin.reportLoading)
+    setBackendError(clubAdmin.opsError ?? clubAdmin.reportError)
+    if (clubAdmin.opsSnapshot) {
+      setUsers(
+        clubAdmin.opsSnapshot.users.map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          teamId: user.teamId,
+        })),
+      )
+      setInvites(
+        clubAdmin.opsSnapshot.invites.map((invite) => ({
+          id: invite.id,
+          email: invite.email,
+          teamId: invite.teamId,
+          status: invite.status === "revoked" ? "expired" : invite.status,
+          createdAt: invite.createdAt,
+        })),
+      )
     }
-
-    void load()
-    return () => {
-      cancelled = true
+    if (clubAdmin.reportSnapshot) {
+      setTeams(
+        clubAdmin.reportSnapshot.teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          eventGroup: (team.eventGroup as "Sprint" | "Mid" | "Distance" | "Jumps" | "Throws") ?? "Sprint",
+          status: team.status,
+        })),
+      )
+      setAthleteRows(
+        clubAdmin.reportSnapshot.athletes.map((athlete) => ({
+          id: athlete.id,
+          name: athlete.name,
+          readiness: athlete.readiness,
+          adherenceLabel: "-",
+        })),
+      )
+      setPrRows(clubAdmin.reportSnapshot.prRows)
     }
-  }, [isSupabaseMode])
+  }, [
+    clubAdmin.opsError,
+    clubAdmin.opsLoading,
+    clubAdmin.opsSnapshot,
+    clubAdmin.reportError,
+    clubAdmin.reportLoading,
+    clubAdmin.reportSnapshot,
+    isSupabaseMode,
+  ])
 
   useEffect(() => {
     if (isSupabaseMode) return
@@ -241,10 +236,36 @@ export default function ClubAdminReportsPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
-      <section className="admin-page-intro">
-        <div>
-          <h1 className="admin-page-intro-title">Reporting should explain the tenant, not bury it.</h1>
-          <p className="admin-page-intro-copy">Export tenant-level user, team, and performance data from one reporting surface.</p>
+      <section className="px-1 py-1 sm:px-2 lg:px-3">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <div className="space-y-4">
+            <h1 className="max-w-[16ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
+              Reporting exports overview.
+            </h1>
+            <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
+              Export tenant-level user, team, and performance data from one reporting surface.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Users", value: users.length },
+              { label: "Teams", value: teams.length },
+              { label: "Invites", value: invites.length },
+              { label: "PR rows", value: prRows.length },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#1368ff]">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-slate-950">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
       {backendError ? (
