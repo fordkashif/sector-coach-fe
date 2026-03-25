@@ -78,10 +78,42 @@ export default function ClubAdminProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="admin-page-intro">
-        <div>
-          <h1 className="admin-page-intro-title">Club identity that stays consistent across the tenant.</h1>
-          <p className="admin-page-intro-copy">Manage branding, season configuration, and the club identity used across the tenant.</p>
+      <section className="px-1 py-1 sm:px-2 lg:px-3">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <div className="space-y-4">
+            <h1 className="max-w-[16ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
+              Club identity that stays consistent across the tenant.
+            </h1>
+            <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
+              Manage branding, season configuration, and the club identity used across the tenant.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Club name", value: profile.clubName || "Not set" },
+              { label: "Short name", value: profile.shortName || "Not set" },
+              { label: "Season year", value: profile.seasonYear || "Not set" },
+              {
+                label: "Season range",
+                value:
+                  profile.seasonStart && profile.seasonEnd
+                    ? `${profile.seasonStart} - ${profile.seasonEnd}`
+                    : "Not set",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#1368ff]">
+                  {item.label}
+                </p>
+                <p className="mt-2 line-clamp-3 text-base font-semibold tracking-[-0.03em] text-slate-950 sm:text-lg">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

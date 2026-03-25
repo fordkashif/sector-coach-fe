@@ -536,3 +536,4 @@ Use SUPABASE_POSTGRES_STATUS_BOARD.md as the single source of truth. Pick the hi
 
 - Shared admin shell title rule: /club-admin/* and /platform-admin/* now suppress the redundant desktop shell page title in src/components/app-shell.tsx; admin pages should rely on their own page-intro title instead.
 
+- Club-admin and platform-admin hero titles should be constrained to roughly two desktop lines, not tall stacked headline blocks.

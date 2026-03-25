@@ -327,7 +327,7 @@ export default function ClubAdminDashboardPage() {
       <section className="px-1 py-1 sm:px-2 lg:px-3">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
           <div className="space-y-4">
-            <h1 className="max-w-[10ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
+            <h1 className="max-w-[16ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
               Club admin command over tenant operations.
             </h1>
             <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
@@ -653,6 +653,9 @@ export default function ClubAdminDashboardPage() {
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">
               Admin Actions
             </h2>
+            <p className="text-sm text-slate-500">
+              Jump directly into the areas that change people, teams, and tenant setup.
+            </p>
           </div>
           <div className="mt-4 space-y-3">
             {[
