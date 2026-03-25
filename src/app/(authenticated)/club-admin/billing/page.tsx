@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -107,13 +106,10 @@ export default function ClubAdminBillingPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="page-intro">
-        <div className="space-y-3">
-          <div>
-            <h1 className="page-intro-title">Subscription & Billing</h1>
-            <p className="page-intro-copy">Manage plan level, seats, payment details, and invoice history.</p>
-          </div>
-          <ClubAdminNav />
+      <section className="admin-page-intro">
+        <div>
+          <h1 className="admin-page-intro-title">Billing state should be visible before it becomes painful.</h1>
+          <p className="admin-page-intro-copy">Manage plan level, seats, payment details, and invoice history.</p>
         </div>
       </section>
 

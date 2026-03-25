@@ -37,7 +37,6 @@ import ClubAdminUsersPage from "@/app/(authenticated)/club-admin/users/page"
 import ClubAdminTeamsPage from "@/app/(authenticated)/club-admin/teams/page"
 import ClubAdminReportsPage from "@/app/(authenticated)/club-admin/reports/page"
 import ClubAdminBillingPage from "@/app/(authenticated)/club-admin/billing/page"
-import ClubAdminAuditPage from "@/app/(authenticated)/club-admin/audit/page"
 import PlatformAdminRequestsPage from "@/app/(authenticated)/platform-admin/requests/page"
 import PlatformAdminAuditPage from "@/app/(authenticated)/platform-admin/audit/page"
 import PlatformAdminDashboardPage from "@/app/(authenticated)/platform-admin/dashboard/page"
@@ -87,7 +86,6 @@ export function AppRouter() {
             <Route path="/club-admin/teams" element={<ClubAdminTeamsPage />} />
             <Route path="/club-admin/reports" element={<ClubAdminReportsPage />} />
             <Route path="/club-admin/billing" element={<ClubAdminBillingPage />} />
-            <Route path="/club-admin/audit" element={<ClubAdminAuditPage />} />
 
             <Route path="/platform-admin" element={<PlatformAdminRedirectPage />} />
             <Route path="/platform-admin/dashboard" element={<PlatformAdminDashboardPage />} />

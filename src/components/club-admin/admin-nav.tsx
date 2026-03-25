@@ -10,7 +10,6 @@ const links = [
   { href: "/club-admin/teams", label: "Teams" },
   { href: "/club-admin/reports", label: "Reports" },
   { href: "/club-admin/billing", label: "Billing" },
-  { href: "/club-admin/audit", label: "Audit Log" },
 ]
 
 export function ClubAdminNav() {

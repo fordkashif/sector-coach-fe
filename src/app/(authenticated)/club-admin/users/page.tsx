@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -146,13 +145,10 @@ export default function ClubAdminUsersPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="page-intro">
-        <div className="space-y-3">
-          <div>
-            <h1 className="page-intro-title">Users & Roles</h1>
-            <p className="page-intro-copy">Review club admin requests, send invites, and control access. Club admins should never provision users manually.</p>
-          </div>
-          <ClubAdminNav />
+      <section className="admin-page-intro">
+        <div>
+          <h1 className="admin-page-intro-title">Access control should start with invites, not manual provisioning.</h1>
+          <p className="admin-page-intro-copy">Review club admin requests, send invites, and control access. Club admins should never provision users manually.</p>
         </div>
       </section>
       {backendError ? (

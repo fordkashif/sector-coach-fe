@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -79,13 +78,10 @@ export default function ClubAdminProfilePage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="page-intro">
-        <div className="space-y-3">
-          <div>
-            <h1 className="page-intro-title">Club Profile</h1>
-            <p className="page-intro-copy">Manage branding, season configuration, and the club identity used across the tenant.</p>
-          </div>
-          <ClubAdminNav />
+      <section className="admin-page-intro">
+        <div>
+          <h1 className="admin-page-intro-title">Club identity that stays consistent across the tenant.</h1>
+          <p className="admin-page-intro-copy">Manage branding, season configuration, and the club identity used across the tenant.</p>
         </div>
       </section>
 

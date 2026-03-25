@@ -531,3 +531,8 @@ Use SUPABASE_POSTGRES_STATUS_BOARD.md as the single source of truth. Pick the hi
 ```
 
 
+
+- Club-admin shell update: /club-admin/* now uses the same dark/blue desktop header shell treatment as platform-admin so admin surfaces share one consistent top-tone rule on desktop.
+
+- Shared admin shell title rule: /club-admin/* and /platform-admin/* now suppress the redundant desktop shell page title in src/components/app-shell.tsx; admin pages should rely on their own page-intro title instead.
+

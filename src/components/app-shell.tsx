@@ -70,6 +70,7 @@ const clubAdminLinks: ShellLink[] = [
   { href: "/club-admin/users", label: "Users", icon: UserGroupIcon },
   { href: "/club-admin/teams", label: "Teams", icon: AssignmentsIcon },
   { href: "/club-admin/reports", label: "Reports", icon: PieChartSquareIcon },
+  { href: "/club-admin/billing", label: "Billing", icon: TextCreationIcon },
 ]
 
 const platformAdminLinks: ShellLink[] = [
@@ -126,6 +127,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/coach/training-plan") ||
     pathname.startsWith("/coach/test-week") ||
     pathname.startsWith("/coach/reports") ||
+    pathname.startsWith("/club-admin") ||
     pathname.startsWith("/platform-admin")
 
   const coachTeamsHref = useMemo(() => {

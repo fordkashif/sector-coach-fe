@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { BarChart, PieChart } from "@mui/x-charts"
-import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { loadClubInvites, loadClubTeams, loadClubUsers } from "../state"
 import type { Athlete, PR } from "@/lib/mock-data"
@@ -242,13 +241,10 @@ export default function ClubAdminReportsPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
-      <section className="page-intro">
-        <div className="space-y-3">
-          <div>
-            <h1 className="page-intro-title">Reports & Exports</h1>
-            <p className="page-intro-copy">Export tenant-level user, team, and performance data from one reporting surface.</p>
-          </div>
-          <ClubAdminNav />
+      <section className="admin-page-intro">
+        <div>
+          <h1 className="admin-page-intro-title">Reporting should explain the tenant, not bury it.</h1>
+          <p className="admin-page-intro-copy">Export tenant-level user, team, and performance data from one reporting surface.</p>
         </div>
       </section>
       {backendError ? (

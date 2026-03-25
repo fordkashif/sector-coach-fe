@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { BarChart, PieChart } from "@mui/x-charts"
 import { Link } from "react-router-dom"
-import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import {
   getClubAdminProfileRecord,
@@ -325,15 +324,36 @@ export default function ClubAdminDashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="page-intro">
-        <div className="space-y-3">
-          <div>
-            <h1 className="page-intro-title">Club Admin Dashboard</h1>
-            <p className="page-intro-copy">
+      <section className="px-1 py-1 sm:px-2 lg:px-3">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+          <div className="space-y-4">
+            <h1 className="max-w-[10ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
+              Club admin command over tenant operations.
+            </h1>
+            <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
               Tenant-wide view for users, teams, access requests, and readiness state.
             </p>
           </div>
-          <ClubAdminNav />
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "Users", value: kpi.users },
+              { label: "Teams", value: kpi.teams },
+              { label: "Pending invites", value: kpi.pendingInvites },
+              { label: "Pending requests", value: kpi.pendingRequests },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#1368ff]">
+                  {item.label}
+                </p>
+                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-slate-950">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -647,8 +667,8 @@ export default function ClubAdminDashboardPage() {
                 href: "/club-admin/teams",
               },
               {
-                title: "Billing & Audit",
-                body: "Review billing state and exported audit records.",
+                title: "Billing",
+                body: "Review billing placeholder state and subscription settings.",
                 href: "/club-admin/billing",
               },
             ].map((item, index) => (
