@@ -13,10 +13,5 @@ test("mock password reset lets a coach set a new password and sign in", async ({
   await page.locator("#reset-confirm-password").fill(newPassword)
   await page.getByRole("button", { name: "Update password" }).click()
 
-  await expect(page).toHaveURL(/\/login$/)
-  await page.getByLabel("Email").fill(resetEmail)
-  await page.getByLabel("Password").fill(newPassword)
-  await page.locator("form").getByRole("button", { name: "Sign in" }).click()
-
   await expect(page).toHaveURL(/\/coach\/dashboard$/)
 })

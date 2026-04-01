@@ -7,6 +7,9 @@ import {
   completeMockPasswordReset,
   getMockPasswordResetEmail,
   getMockCredentialByEmail,
+  MOCK_COACH_TEAM_STORAGE_KEY,
+  MOCK_ROLE_STORAGE_KEY,
+  MOCK_USER_EMAIL_STORAGE_KEY,
 } from "@/lib/mock-auth"
 
 export async function requestPasswordReset(email: string) {
@@ -107,13 +110,32 @@ export async function completePasswordReset(params: { password: string; token?: 
       return { ok: false as const, message: result.message }
     }
 
-    clearSessionCookies()
+    const account = getMockCredentialByEmail(result.email)
+    if (!account) {
+      return { ok: false as const, message: "Mock account no longer exists." }
+    }
+
+    window.localStorage.setItem(MOCK_ROLE_STORAGE_KEY, account.role)
+    window.localStorage.setItem(MOCK_USER_EMAIL_STORAGE_KEY, account.email)
+    if (account.role === "coach" && account.defaultTeamId) {
+      window.localStorage.setItem(MOCK_COACH_TEAM_STORAGE_KEY, account.defaultTeamId)
+    } else {
+      window.localStorage.removeItem(MOCK_COACH_TEAM_STORAGE_KEY)
+    }
+
+    setSessionCookies(
+      account.role,
+      account.tenantId,
+      account.email,
+      account.role === "coach" ? account.defaultTeamId : undefined,
+    )
+
     return {
       ok: true as const,
       mode: "mock" as const,
       email: result.email,
       actorRole: result.role,
-      redirectTo: "/login",
+      redirectTo: account.redirectTo,
     }
   }
 
