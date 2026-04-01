@@ -15,6 +15,7 @@ import { BarChart, LineChart } from "@mui/x-charts"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
 import { Button } from "@/components/ui/button"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import type { Athlete, PR, Team, TestWeekResult, TrendPoint } from "@/lib/mock-data"
 import {
   getCoachDashboardSnapshotForCurrentUser,
@@ -239,13 +240,17 @@ export default function CoachDashboardPage() {
             Backend sync issue: {backendError}
           </div>
         ) : null}
-        <div className="space-y-2">
-          <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">Dashboard</h1>
-          <p className="max-w-xl text-[0.95rem] leading-6 text-slate-600">
-            Monitor readiness, plan adherence, progress, and testing across the current squad.
-            {scopedTeam ? ` Viewing ${scopedTeam.name}.` : ""}
-          </p>
-        </div>
+        <StandardPageHeader
+          eyebrow="Coach dashboard"
+          title="Dashboard"
+          description={`Monitor readiness, plan adherence, progress, and testing across the current squad.${scopedTeam ? ` Viewing ${scopedTeam.name}.` : ""}`}
+          stats={[
+            { label: "Athletes", value: scopedAthletes.length },
+            { label: "Ready", value: readinessSummary.green },
+            { label: "Flags", value: alertRows.length },
+            { label: "PR Rows", value: scopedPrs.length },
+          ]}
+        />
 
         {coachNeedsGuide && !setupGuideDismissedAt ? (
           <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_14px_32px_rgba(15,23,42,0.04)]">

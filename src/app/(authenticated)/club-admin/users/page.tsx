@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/drawer"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import { useClubAdmin } from "@/lib/club-admin-context"
 import {
   createCoachInvite,
@@ -235,18 +236,22 @@ export default function ClubAdminUsersPage() {
     </div>
   )
 
+  const headerStats = [
+    { label: "Users", value: users.length },
+    { label: "Invites", value: invites.length },
+    { label: "Active", value: users.filter((user) => user.status === "active").length },
+    { label: "Suspended", value: users.filter((user) => user.status !== "active").length },
+  ]
+
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="px-1 py-1 sm:px-2 lg:px-3">
-        <div className="space-y-4">
-          <h1 className="max-w-[14ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
-            Invite and access control.
-          </h1>
-          <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
-            Send invites and manage active user access. Club admins should never provision accounts manually.
-          </p>
-        </div>
-      </section>
+      <StandardPageHeader
+        variant="admin"
+        eyebrow="Club admin users"
+        title="Invite and access control."
+        description="Send invites and manage active user access. Club admins should never provision accounts manually."
+        stats={headerStats}
+      />
       {backendError ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Backend sync issue: {backendError}

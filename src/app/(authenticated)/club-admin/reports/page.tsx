@@ -6,6 +6,7 @@ import { FileDownloadIcon, PrinterIcon, Search01Icon } from "@hugeicons/core-fre
 import { HugeiconsIcon } from "@hugeicons/react"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
 import { Button } from "@/components/ui/button"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import { useClubAdmin } from "@/lib/club-admin-context"
 import { loadClubInvites, loadClubTeams, loadClubUsers } from "../state"
 import type { Athlete, PR } from "@/lib/mock-data"
@@ -233,41 +234,22 @@ export default function ClubAdminReportsPage() {
   ).sort((left, right) => right[1] - left[1])
   const prChartRows = prByCategory.map(([category, count]) => ({ category, count }))
   const hasSnapshotData = users.length > 0 || teams.length > 0 || invites.length > 0 || prRows.length > 0 || athleteRows.length > 0
+  const headerStats = [
+    { label: "Users", value: users.length },
+    { label: "Teams", value: teams.length },
+    { label: "Invites", value: invites.length },
+    { label: "PR rows", value: prRows.length },
+  ]
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6 print:p-0">
-      <section className="px-1 py-1 sm:px-2 lg:px-3">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-          <div className="space-y-4">
-            <h1 className="max-w-[16ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
-              Reporting exports overview.
-            </h1>
-            <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
-              Export tenant-level user, team, and performance data from one reporting surface.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Users", value: users.length },
-              { label: "Teams", value: teams.length },
-              { label: "Invites", value: invites.length },
-              { label: "PR rows", value: prRows.length },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#1368ff]">
-                  {item.label}
-                </p>
-                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-slate-950">
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <StandardPageHeader
+        variant="admin"
+        eyebrow="Club admin reports"
+        title="Reporting exports overview."
+        description="Export tenant-level user, team, and performance data from one reporting surface."
+        stats={headerStats}
+      />
       {backendError ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Backend sync issue: {backendError}

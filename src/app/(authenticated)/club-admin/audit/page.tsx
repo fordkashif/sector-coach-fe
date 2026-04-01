@@ -13,6 +13,7 @@ import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
 import { Input } from "@/components/ui/input"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { AuditEvent } from "@/lib/mock-audit"
 import { getBackendMode } from "@/lib/supabase/config"
@@ -86,6 +87,12 @@ export default function ClubAdminAuditPage() {
 
   const actions = Array.from(new Set(entries.map((entry) => entry.action)))
   const hasFilters = query.trim().length > 0 || actionFilter !== "all"
+  const headerStats = [
+    { label: "Entries", value: entries.length },
+    { label: "Matched", value: filtered.length },
+    { label: "Actions", value: actions.length },
+    { label: "Filters", value: hasFilters ? "On" : "Off" },
+  ]
   const columns = useMemo(
     () => [
       columnHelper.accessor("action", {
@@ -118,15 +125,14 @@ export default function ClubAdminAuditPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
-      <section className="page-intro">
-        <div className="space-y-3">
-          <div>
-            <h1 className="page-intro-title">Audit / Activity Logs</h1>
-            <p className="page-intro-copy">Review admin actions, filter events, and inspect the current audit history.</p>
-          </div>
-          <ClubAdminNav />
-        </div>
-      </section>
+      <StandardPageHeader
+        variant="admin"
+        eyebrow="Club admin audit"
+        title="Audit / Activity Logs"
+        description="Review admin actions, filter events, and inspect the current audit history."
+        stats={headerStats}
+        meta={<ClubAdminNav />}
+      />
       {backendError ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Backend sync issue: {backendError}

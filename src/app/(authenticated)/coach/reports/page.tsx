@@ -15,6 +15,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { BarChart } from "@mui/x-charts"
 import { Button } from "@/components/ui/button"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
 import type { Athlete, PR, Team, WellnessEntry } from "@/lib/mock-data"
 import {
@@ -209,6 +210,15 @@ export default function CoachReportsPage() {
       icon: NoteEditIcon,
     },
   ]
+  const headerStats = overviewCards.map((card) => ({
+    label: card.label,
+    value: (
+      <div className="flex items-end gap-1">
+        <span>{card.value}</span>
+        <span className="pb-1 text-sm font-medium text-slate-500">{card.suffix}</span>
+      </div>
+    ),
+  }))
 
   const exportAthleteAdherence = () => {
     const rows = [
@@ -264,40 +274,22 @@ export default function CoachReportsPage() {
             Backend sync issue: {backendError}
           </div>
         ) : null}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">Reports</h1>
-            <p className="max-w-xl text-[0.95rem] leading-6 text-slate-600">
-              Review adherence risk, wellness signals, and PR movement across the active squad.
-              {scopedTeam ? ` Viewing ${scopedTeam.name}.` : ""}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={exportWellness}
-            aria-label="Export wellness CSV"
-            className="flex size-14 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_14px_34px_rgba(31,140,255,0.32),0_0_28px_rgba(71,89,255,0.18)] hover:opacity-95"
-          >
-            <HugeiconsIcon icon={FileDownloadIcon} className="size-5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {overviewCards.map((card) => (
-            <div key={card.label} className={cn("rounded-[26px] border p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)]", card.tone)}>
-              <div className="flex items-center gap-2.5">
-                <div className={cn("flex size-10 items-center justify-center rounded-full", card.badgeTone)}>
-                  <HugeiconsIcon icon={card.icon} className="size-4 text-slate-950" />
-                </div>
-                <p className="text-sm font-medium leading-5 text-slate-700">{card.label}</p>
-              </div>
-              <div className="mt-2 flex items-end gap-1">
-                <p className="text-[2rem] font-semibold leading-none tracking-[-0.06em] text-slate-950">{card.value}</p>
-                <p className="pb-1 text-sm text-slate-500">{card.suffix}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <StandardPageHeader
+          eyebrow="Coach reports"
+          title="Reports"
+          description={`Review adherence risk, wellness signals, and PR movement across the active squad.${scopedTeam ? ` Viewing ${scopedTeam.name}.` : ""}`}
+          stats={headerStats}
+          trailing={
+            <button
+              type="button"
+              onClick={exportWellness}
+              aria-label="Export wellness CSV"
+              className="flex size-14 shrink-0 items-center justify-center rounded-[24px] bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_14px_34px_rgba(31,140,255,0.32),0_0_28px_rgba(71,89,255,0.18)] hover:opacity-95"
+            >
+              <HugeiconsIcon icon={FileDownloadIcon} className="size-5" />
+            </button>
+          }
+        />
 
         <div className="grid grid-cols-2 gap-2 lg:hidden">
           <Button type="button" variant="outline" className="mobile-action-secondary bg-white" onClick={exportAthleteAdherence}>

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
   type CurrentSession,
   type SessionBlock,
@@ -286,22 +287,26 @@ export default function AthleteLogPage() {
             Backend sync issue: {backendSessionError}
           </div>
         ) : null}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-medium text-slate-700">
-              {currentSession.estimatedDuration}
-            </span>
-            <span className={cn("inline-flex rounded-full px-3 py-1 text-xs font-medium", sessionState.tone)}>
-              {sessionState.label}
-            </span>
-          </div>
-          <h1 className="text-[2.15rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.5rem]">
-            {currentSession.title}
-          </h1>
-          <p className="text-base leading-7 text-slate-600">
-            {currentSession.scheduledFor}. Programmed for {currentAthleteFirstName} and ready to log live.
-          </p>
-        </div>
+        <StandardPageHeader
+          eyebrow="Athlete workout"
+          title={currentSession.title}
+          description={`${currentSession.scheduledFor}. Programmed for ${currentAthleteFirstName} and ready to log live.`}
+          meta={
+            <div className="flex items-center gap-2">
+              <span className="inline-flex rounded-full bg-[#eef5ff] px-3 py-1 text-xs font-medium text-slate-700">
+                {currentSession.estimatedDuration}
+              </span>
+              <span className={cn("inline-flex rounded-full px-3 py-1 text-xs font-medium", sessionState.tone)}>
+                {sessionState.label}
+              </span>
+            </div>
+          }
+          stats={[
+            { label: "Blocks", value: totalBlocks },
+            { label: "Done", value: completedCount },
+            { label: "Progress", value: `${progressPercent}%` },
+          ]}
+        />
 
         <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 shadow-[0_12px_28px_rgba(15,23,42,0.06)]">
           <div className="flex items-center justify-between text-sm">

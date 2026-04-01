@@ -5,6 +5,7 @@ import { Link } from "react-router-dom"
 import { Notification01Icon, Search01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
   getPlatformAdminRequestQueue,
   getPlatformAuditEvents,
@@ -67,38 +68,22 @@ export default function PlatformAdminDashboardPage() {
 
   const recentPending = useMemo(() => requests.filter((item) => item.status === "pending").slice(0, 4), [requests])
   const recentAudit = useMemo(() => auditEvents.slice(0, 5), [auditEvents])
+  const headerStats = [
+    { label: "Pending", value: summary.pending },
+    { label: "Approved", value: summary.approved },
+    { label: "Rejected", value: summary.rejected },
+    { label: "Provisioned", value: summary.provisioned },
+  ]
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
-      <section className="px-1 py-1 sm:px-2 lg:px-3">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <div className="space-y-4">
-            <h1 className="max-w-[10ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
-              System control, without tenant leakage.
-            </h1>
-            <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
-              This surface tracks new organization intake, provisioning progress, and the platform-level audit trail before tenant ownership even exists.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Pending", value: summary.pending },
-              { label: "Approved", value: summary.approved },
-              { label: "Rejected", value: summary.rejected },
-              { label: "Provisioned", value: summary.provisioned },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#1368ff]">{item.label}</p>
-                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <StandardPageHeader
+        variant="admin"
+        eyebrow="Platform admin dashboard"
+        title="System control, without tenant leakage."
+        description="This surface tracks new organization intake, provisioning progress, and the platform-level audit trail before tenant ownership even exists."
+        stats={headerStats}
+      />
 
       {error ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

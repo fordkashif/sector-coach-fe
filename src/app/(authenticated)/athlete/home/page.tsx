@@ -13,6 +13,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
   dateKeyLocal,
   defaultSessionProgress,
@@ -264,11 +265,11 @@ export default function AthleteHomePage() {
               Backend sync issue: {backendError}
             </div>
           ) : null}
-          <div className="flex items-start justify-between gap-4 pb-4">
-            <div className="space-y-3">
-              <h1 className="text-[2.2rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.6rem]">
-                Hey, {backendSessionDetail?.athleteFirstName ?? "Athlete"}
-              </h1>
+          <StandardPageHeader
+            eyebrow="Athlete home"
+            title={`Hey, ${backendSessionDetail?.athleteFirstName ?? "Athlete"}`}
+            description="Use this as the daily launch point for training, recovery, and short-term progress."
+            meta={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex rounded-full bg-[#f5ecff] px-3 py-1 text-xs font-medium text-slate-700 shadow-[0_6px_14px_rgba(15,23,42,0.04)]">
                   Stretch: +8%
@@ -277,14 +278,17 @@ export default function AthleteHomePage() {
                   Endurance: +4%
                 </span>
               </div>
-            </div>
-            <div className="shrink-0 rounded-[22px] border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
-              <div className="flex items-center gap-2 text-slate-950">
-                <HugeiconsIcon icon={Fire03Icon} className="size-4 text-[#ff7a2f]" />
-                <span className="text-xl font-semibold tracking-[-0.04em]">11</span>
+            }
+            trailing={
+              <div className="shrink-0 rounded-[22px] border border-slate-200 bg-white px-4 py-3 shadow-[0_10px_24px_rgba(15,23,42,0.05)]">
+                <div className="flex items-center gap-2 text-slate-950">
+                  <HugeiconsIcon icon={Fire03Icon} className="size-4 text-[#ff7a2f]" />
+                  <span className="text-xl font-semibold tracking-[-0.04em]">11</span>
+                </div>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Day streak</p>
               </div>
-            </div>
-          </div>
+            }
+          />
 
           {athleteNeedsGuide && !setupGuideDismissedAt ? (
             <div className="mb-5 rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_14px_32px_rgba(15,23,42,0.04)]">

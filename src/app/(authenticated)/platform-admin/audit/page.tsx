@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -190,34 +191,18 @@ export default function PlatformAdminAuditPage() {
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
-      <section className="px-1 py-1 sm:px-2 lg:px-3">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-          <div className="space-y-4">
-            <h1 className="max-w-[10ch] text-[clamp(2.2rem,5vw,4.75rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-slate-950">
-              Platform audit, not tenant guesswork.
-            </h1>
-            <p className="max-w-[60ch] text-sm leading-7 text-slate-600 sm:text-base">
-              This is the system-level trail for request intake, review, and provisioning before a tenant exists. Use it to verify exactly who did what and when.
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Events", value: summary.total },
-              { label: "Submitted", value: summary.submissions },
-              { label: "Reviewed", value: summary.reviews },
-              { label: "Provisioned", value: summary.provisioned },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f4f8fc_100%)] px-4 py-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
-              >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#1368ff]">{item.label}</p>
-                <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-slate-950">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <StandardPageHeader
+        variant="admin"
+        eyebrow="Platform admin audit"
+        title="Platform audit, not tenant guesswork."
+        description="This is the system-level trail for request intake, review, and provisioning before a tenant exists. Use it to verify exactly who did what and when."
+        stats={[
+          { label: "Events", value: summary.total },
+          { label: "Submitted", value: summary.submissions },
+          { label: "Reviewed", value: summary.reviews },
+          { label: "Provisioned", value: summary.provisioned },
+        ]}
+      />
 
       {error ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

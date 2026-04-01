@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react"
 import { EventGroupBadge } from "@/components/badges"
 import { Button } from "@/components/ui/button"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
+import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
   Dialog,
   DialogContent,
@@ -206,41 +207,18 @@ export default function CoachTeamsPage() {
             </div>
           </section>
         ) : (
-          <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[linear-gradient(135deg,rgba(7,17,34,0.96)_0%,rgba(10,24,44,0.9)_55%,rgba(20,67,160,0.72)_100%)] text-white shadow-[0_24px_80px_rgba(5,12,24,0.28)]">
-            <div className="grid gap-8 px-5 py-6 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,420px)] lg:px-8 lg:py-9 xl:px-10">
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6fb6ff]">
-                    Coach Teams
-                  </p>
-                  <h1 className="max-w-[11ch] text-[clamp(2.35rem,6vw,4.9rem)] font-semibold leading-[0.92] tracking-[-0.05em] text-white">
-                    Team operations with clearer signal and less admin clutter.
-                  </h1>
-                  <p className="max-w-[58ch] text-sm leading-7 text-white/72 sm:text-base">
-                    Review roster load, invite flow, and current group health from one surface.
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[24px] border border-white/12 bg-white/[0.06] px-4 py-4 backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6fb6ff]">Visible teams</p>
-                    <p className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{visibleTeams.length}</p>
-                    <p className="mt-1 text-sm text-white/64">Current operational scope</p>
-                  </div>
-                  <div className="rounded-[24px] border border-white/12 bg-white/[0.06] px-4 py-4 backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6fb6ff]">Athletes</p>
-                    <p className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{totalAthletes}</p>
-                    <p className="mt-1 text-sm text-white/64">Across active roster view</p>
-                  </div>
-                  <div className="rounded-[24px] border border-white/12 bg-white/[0.06] px-4 py-4 backdrop-blur-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6fb6ff]">Alerts</p>
-                    <p className="mt-2 text-3xl font-semibold tracking-[-0.04em]">{readinessAlerts}</p>
-                    <p className="mt-1 text-sm text-white/64">Readiness issues in view</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[28px] border border-white/12 bg-white/[0.08] p-5 backdrop-blur-sm lg:self-end">
+          <StandardPageHeader
+            variant="darkHero"
+            eyebrow="Coach teams"
+            title="Team operations with clearer signal and less admin clutter."
+            description="Review roster load, invite flow, and current group health from one surface."
+            stats={[
+              { label: "Visible teams", value: visibleTeams.length },
+              { label: "Athletes", value: totalAthletes },
+              { label: "Alerts", value: readinessAlerts },
+            ]}
+            trailing={
+              <>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#6fb6ff]">In scope</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3 text-sm text-white/72">
@@ -256,9 +234,9 @@ export default function CoachTeamsPage() {
                     <span className="font-semibold text-white">Roster + invites</span>
                   </div>
                 </div>
-              </div>
-            </div>
-          </section>
+              </>
+            }
+          />
         )}
         {backendError ? (
           <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
