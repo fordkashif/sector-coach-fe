@@ -1,7 +1,7 @@
 import { getBackendMode } from "@/lib/supabase/config"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 import { resolveSessionActor } from "@/lib/supabase/actor"
-import { clearSessionCookies, setSessionCookies } from "@/lib/auth-session"
+import { setSessionCookies } from "@/lib/auth-session"
 import {
   createMockPasswordResetToken,
   completeMockPasswordReset,

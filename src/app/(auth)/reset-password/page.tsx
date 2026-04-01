@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,11 +19,17 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [localResetLink, setLocalResetLink] = useState<string | null>(null)
+  const [copyStatus, setCopyStatus] = useState<"idle" | "done" | "failed">("idle")
 
   const code = searchParams.get("code")
   const tokenHash = searchParams.get("token_hash")
   const type = searchParams.get("type")
   const mockToken = searchParams.get("mock_token")
+  const absoluteLocalResetLink = useMemo(() => {
+    if (!localResetLink || typeof window === "undefined") return null
+    return new URL(localResetLink, window.location.origin).toString()
+  }, [localResetLink])
 
   useEffect(() => {
     let cancelled = false
@@ -77,10 +83,25 @@ export default function ResetPasswordPage() {
 
     setMessage(result.message)
     if (result.mode === "mock" && result.actionLink) {
-      navigate(result.actionLink)
+      setLocalResetLink(result.actionLink)
+      setCopyStatus("idle")
+      setStage("success")
       return
     }
+
+    setLocalResetLink(null)
+    setCopyStatus("idle")
     setStage("success")
+  }
+
+  const handleCopyLocalResetLink = async () => {
+    if (!absoluteLocalResetLink) return
+    try {
+      await navigator.clipboard.writeText(absoluteLocalResetLink)
+      setCopyStatus("done")
+    } catch {
+      setCopyStatus("failed")
+    }
   }
 
   const handleUpdateSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -123,6 +144,26 @@ export default function ResetPasswordPage() {
         ) : null}
         {message && !error ? (
           <div className="mt-5 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>
+        ) : null}
+        {absoluteLocalResetLink ? (
+          <div className="mt-5 rounded-[22px] border border-sky-200 bg-sky-50/80 px-4 py-4 text-sm text-slate-700">
+            <p className="font-medium text-slate-950">Local reset link</p>
+            <p className="mt-1 text-slate-600">Mock mode does not send email, so copy or open the generated reset link directly.</p>
+            <div className="mt-3 rounded-[16px] border border-sky-100 bg-white px-3 py-3 font-mono text-xs text-slate-700 break-all" data-testid="local-reset-link">
+              {absoluteLocalResetLink}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <Button type="button" onClick={handleCopyLocalResetLink} variant="outline" className="h-10 rounded-full px-4">
+                {copyStatus === "done" ? "Copied" : "Copy link"}
+              </Button>
+              <Button asChild type="button" className="h-10 rounded-full px-4">
+                <Link to={localResetLink ?? "/reset-password"}>Open link</Link>
+              </Button>
+            </div>
+            {copyStatus === "failed" ? (
+              <p className="mt-2 text-xs text-rose-600">Clipboard write failed. Open the link directly instead.</p>
+            ) : null}
+          </div>
         ) : null}
 
         {stage === "update" ? (
