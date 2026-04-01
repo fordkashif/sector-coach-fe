@@ -29,6 +29,37 @@ type ScopedOptions = {
   scopeTeamId?: string | null
 }
 
+const COACH_SNAPSHOT_CACHE_TTL_MS = 30_000
+
+type CoachSnapshotCacheEntry = {
+  data: CoachDashboardSnapshot
+  cachedAt: number
+}
+
+const coachDashboardSnapshotCache = new Map<string, CoachSnapshotCacheEntry>()
+const coachDashboardSnapshotInflight = new Map<string, Promise<Result<CoachDashboardSnapshot>>>()
+const coachWellnessEntriesCache = new Map<string, { data: WellnessEntry[]; cachedAt: number }>()
+const coachWellnessEntriesInflight = new Map<string, Promise<Result<WellnessEntry[]>>>()
+
+function coachSnapshotCacheKey(scopeTeamId?: string | null) {
+  return scopeTeamId?.trim() || "__all__"
+}
+
+function getFreshCoachSnapshotCache(scopeTeamId?: string | null) {
+  const cacheKey = coachSnapshotCacheKey(scopeTeamId)
+  const cached = coachDashboardSnapshotCache.get(cacheKey)
+  if (!cached) return null
+  if (Date.now() - cached.cachedAt > COACH_SNAPSHOT_CACHE_TTL_MS) {
+    coachDashboardSnapshotCache.delete(cacheKey)
+    return null
+  }
+  return cached.data
+}
+
+export function peekCachedCoachDashboardSnapshot(scopeTeamId?: string | null) {
+  return getFreshCoachSnapshotCache(scopeTeamId)
+}
+
 function requireSupabaseClient(operation: string): ClientResolution {
   if (getBackendMode() !== "supabase") {
     return {
@@ -114,6 +145,14 @@ async function resolveScopedCoachTeamIds(
 }
 
 export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOptions): Promise<Result<CoachDashboardSnapshot>> {
+  const cached = getFreshCoachSnapshotCache(options?.scopeTeamId)
+  if (cached) return ok(cached)
+
+  const cacheKey = coachSnapshotCacheKey(options?.scopeTeamId)
+  const inflight = coachDashboardSnapshotInflight.get(cacheKey)
+  if (inflight) return inflight
+
+  const requestPromise = (async (): Promise<Result<CoachDashboardSnapshot>> => {
   const clientResult = requireSupabaseClient("getCoachDashboardSnapshotForCurrentUser")
   if (!clientResult.ok) return clientResult
 
@@ -145,7 +184,9 @@ export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOp
 
   const scopedTeamIds = scopedTeamIdsResult.data
   if (Array.isArray(scopedTeamIds) && scopedTeamIds.length === 0) {
-    return ok({ teams: [], athletes: [], prs: [], tests: [], trendSeries: {} })
+    const emptySnapshot = { teams: [], athletes: [], prs: [], tests: [], trendSeries: {} }
+    coachDashboardSnapshotCache.set(cacheKey, { data: emptySnapshot, cachedAt: Date.now() })
+    return ok(emptySnapshot)
   }
 
   const teamsQuery = clientResult.client
@@ -206,7 +247,9 @@ export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOp
     }))
 
   if (athleteIds.length === 0) {
-    return ok({ teams, athletes: [], prs: [], tests: [], trendSeries: {} })
+    const emptyAthleteSnapshot = { teams, athletes: [], prs: [], tests: [], trendSeries: {} }
+    coachDashboardSnapshotCache.set(cacheKey, { data: emptyAthleteSnapshot, cachedAt: Date.now() })
+    return ok(emptyAthleteSnapshot)
   }
 
   const sinceDate = new Date()
@@ -372,16 +415,36 @@ export async function getCoachDashboardSnapshotForCurrentUser(options?: ScopedOp
 
   const tests = Object.values(testsByAthlete)
 
-  return ok({
+  const snapshot = {
     teams,
     athletes,
     prs,
     tests,
     trendSeries: wellnessByAthlete,
-  })
+  }
+  coachDashboardSnapshotCache.set(cacheKey, { data: snapshot, cachedAt: Date.now() })
+  return ok(snapshot)
+  })()
+
+  coachDashboardSnapshotInflight.set(cacheKey, requestPromise)
+  try {
+    return await requestPromise
+  } finally {
+    coachDashboardSnapshotInflight.delete(cacheKey)
+  }
 }
 
 export async function getCoachWellnessEntriesForCurrentUser(options?: ScopedOptions): Promise<Result<WellnessEntry[]>> {
+  const cacheKey = coachSnapshotCacheKey(options?.scopeTeamId)
+  const cached = coachWellnessEntriesCache.get(cacheKey)
+  if (cached && Date.now() - cached.cachedAt <= COACH_SNAPSHOT_CACHE_TTL_MS) {
+    return ok(cached.data)
+  }
+
+  const inflight = coachWellnessEntriesInflight.get(cacheKey)
+  if (inflight) return inflight
+
+  const requestPromise = (async (): Promise<Result<WellnessEntry[]>> => {
   const clientResult = requireSupabaseClient("getCoachWellnessEntriesForCurrentUser")
   if (!clientResult.ok) return clientResult
 
@@ -412,7 +475,10 @@ export async function getCoachWellnessEntriesForCurrentUser(options?: ScopedOpti
   if (!scopedTeamIdsResult.ok) return scopedTeamIdsResult
 
   const scopedTeamIds = scopedTeamIdsResult.data
-  if (Array.isArray(scopedTeamIds) && scopedTeamIds.length === 0) return ok([])
+  if (Array.isArray(scopedTeamIds) && scopedTeamIds.length === 0) {
+    coachWellnessEntriesCache.set(cacheKey, { data: [], cachedAt: Date.now() })
+    return ok([])
+  }
 
   const athleteQuery = clientResult.client
     .from("athletes")
@@ -425,7 +491,10 @@ export async function getCoachWellnessEntriesForCurrentUser(options?: ScopedOpti
   if (athleteError) return { ok: false, error: mapPostgrestError(athleteError) }
 
   const athleteIds = ((athleteRows as Array<{ id: string }> | null) ?? []).map((row) => row.id)
-  if (athleteIds.length === 0) return ok([])
+  if (athleteIds.length === 0) {
+    coachWellnessEntriesCache.set(cacheKey, { data: [], cachedAt: Date.now() })
+    return ok([])
+  }
 
   const { data: wellnessRows, error: wellnessError } = await clientResult.client
     .from("wellness_entries")
@@ -436,8 +505,7 @@ export async function getCoachWellnessEntriesForCurrentUser(options?: ScopedOpti
 
   if (wellnessError) return { ok: false, error: mapPostgrestError(wellnessError) }
 
-  return ok(
-    ((wellnessRows as Array<{
+  const entries = ((wellnessRows as Array<{
       id: string
       athlete_id: string
       entry_date: string
@@ -459,8 +527,17 @@ export async function getCoachWellnessEntriesForCurrentUser(options?: ScopedOpti
       stress: row.stress,
       notes: row.notes ?? undefined,
       readiness: row.readiness,
-    })),
-  )
+    }))
+  coachWellnessEntriesCache.set(cacheKey, { data: entries, cachedAt: Date.now() })
+  return ok(entries)
+  })()
+
+  coachWellnessEntriesInflight.set(cacheKey, requestPromise)
+  try {
+    return await requestPromise
+  } finally {
+    coachWellnessEntriesInflight.delete(cacheKey)
+  }
 }
 
 function inferLogType(title: string): LogEntry["type"] {

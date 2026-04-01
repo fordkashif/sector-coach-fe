@@ -142,12 +142,11 @@ export default function CoachTestWeekPageSupabaseClient({ initialRole, initialCo
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-8xl space-y-6 p-4 sm:p-6">
       <section className="space-y-2">
         <h1 className="text-[2.35rem] leading-[0.95] font-semibold tracking-[-0.07em] text-slate-950 sm:text-[2.8rem]">
           Test Weeks
         </h1>
-        <p className="text-sm text-slate-600">Supabase mode: create and publish test weeks without mock data.</p>
       </section>
 
       {error ? (

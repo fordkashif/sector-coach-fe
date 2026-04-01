@@ -2,7 +2,11 @@ import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { CoachTeamDetailContent } from "@/components/coach/team-detail-content"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
-import { getCoachDashboardSnapshotForCurrentUser, type CoachDashboardSnapshot } from "@/lib/data/coach/dashboard-data"
+import {
+  getCoachDashboardSnapshotForCurrentUser,
+  peekCachedCoachDashboardSnapshot,
+  type CoachDashboardSnapshot,
+} from "@/lib/data/coach/dashboard-data"
 import type { Team } from "@/lib/mock-data"
 import { getBackendMode } from "@/lib/supabase/config"
 import { InvalidEntityPage } from "@/pages/invalid-entity"
@@ -12,7 +16,9 @@ export default function CoachTeamDetailPage() {
   const { teamId = "" } = useParams()
   const role = getCookieValue(ROLE_COOKIE)
   const coachTeamId = getCookieValue(COACH_TEAM_COOKIE)
-  const [backendSnapshot, setBackendSnapshot] = useState<CoachDashboardSnapshot | null>(null)
+  const [backendSnapshot, setBackendSnapshot] = useState<CoachDashboardSnapshot | null>(() =>
+    backendMode === "supabase" ? peekCachedCoachDashboardSnapshot(role === "coach" ? coachTeamId : null) : null,
+  )
   const [mockTeams, setMockTeams] = useState<Team[]>([])
   const [backendError, setBackendError] = useState<string | null>(null)
 

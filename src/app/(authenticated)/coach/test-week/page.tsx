@@ -1,9 +1,7 @@
-import { Suspense, lazy } from "react"
+import CoachTestWeekPageClient from "@/components/coach/test-week-page-client"
+import CoachTestWeekPageSupabaseClient from "@/components/coach/test-week-page-supabase-client"
 import { COACH_TEAM_COOKIE, getCookieValue, ROLE_COOKIE } from "@/lib/auth-session"
 import { getBackendMode } from "@/lib/supabase/config"
-
-const CoachTestWeekPageClient = lazy(() => import("@/components/coach/test-week-page-client"))
-const CoachTestWeekPageSupabaseClient = lazy(() => import("@/components/coach/test-week-page-supabase-client"))
 type CoachPageRole = "coach" | "club-admin"
 
 export default function CoachTestWeekPage() {
@@ -13,12 +11,10 @@ export default function CoachTestWeekPage() {
   const coachTeamId = getCookieValue(COACH_TEAM_COOKIE)
 
   return (
-    <Suspense fallback={null}>
-      {backendMode === "supabase" ? (
-        <CoachTestWeekPageSupabaseClient initialRole={role} initialCoachTeamId={coachTeamId} />
-      ) : (
-        <CoachTestWeekPageClient initialRole={role} initialCoachTeamId={coachTeamId} />
-      )}
-    </Suspense>
+    backendMode === "supabase" ? (
+      <CoachTestWeekPageSupabaseClient initialRole={role} initialCoachTeamId={coachTeamId} />
+    ) : (
+      <CoachTestWeekPageClient initialRole={role} initialCoachTeamId={coachTeamId} />
+    )
   )
 }

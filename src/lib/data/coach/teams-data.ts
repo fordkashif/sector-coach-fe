@@ -13,6 +13,16 @@ type CoachTeamsSnapshot = {
   athletes: Athlete[]
 }
 
+const COACH_TEAMS_SNAPSHOT_CACHE_TTL_MS = 30_000
+
+type CoachTeamsSnapshotCacheEntry = {
+  data: CoachTeamsSnapshot
+  cachedAt: number
+}
+
+let coachTeamsSnapshotCache: CoachTeamsSnapshotCacheEntry | null = null
+let coachTeamsSnapshotInflight: Promise<Result<CoachTeamsSnapshot>> | null = null
+
 function requireSupabaseClient(operation: string): ClientResolution {
   if (getBackendMode() !== "supabase") {
     return {
@@ -38,6 +48,13 @@ function toEventGroup(value: string | null | undefined): EventGroup {
 }
 
 export async function getCoachTeamsSnapshotForCurrentUser(): Promise<Result<CoachTeamsSnapshot>> {
+  if (coachTeamsSnapshotCache && Date.now() - coachTeamsSnapshotCache.cachedAt <= COACH_TEAMS_SNAPSHOT_CACHE_TTL_MS) {
+    return ok(coachTeamsSnapshotCache.data)
+  }
+
+  if (coachTeamsSnapshotInflight) return coachTeamsSnapshotInflight
+
+  const requestPromise = (async (): Promise<Result<CoachTeamsSnapshot>> => {
   const clientResult = requireSupabaseClient("getCoachTeamsSnapshotForCurrentUser")
   if (!clientResult.ok) return clientResult
 
@@ -70,7 +87,9 @@ export async function getCoachTeamsSnapshotForCurrentUser(): Promise<Result<Coac
     if (membershipResult.error) return { ok: false, error: mapPostgrestError(membershipResult.error) }
     scopedTeamIds = ((membershipResult.data as Array<{ team_id: string }> | null) ?? []).map((row) => row.team_id)
     if (scopedTeamIds.length === 0) {
-      return ok({ teams: [], athletes: [] })
+      const emptySnapshot = { teams: [], athletes: [] }
+      coachTeamsSnapshotCache = { data: emptySnapshot, cachedAt: Date.now() }
+      return ok(emptySnapshot)
     }
   }
 
@@ -135,8 +154,18 @@ export async function getCoachTeamsSnapshotForCurrentUser(): Promise<Result<Coac
     disciplines: undefined,
   }))
 
-  return ok({
+  const snapshot = {
     teams,
     athletes: athleteList,
-  })
+  }
+  coachTeamsSnapshotCache = { data: snapshot, cachedAt: Date.now() }
+  return ok(snapshot)
+  })()
+
+  coachTeamsSnapshotInflight = requestPromise
+  try {
+    return await requestPromise
+  } finally {
+    coachTeamsSnapshotInflight = null
+  }
 }

@@ -110,6 +110,47 @@ function displayNameFromEmail(userEmail: string | null, fallbackRole: string) {
   return label || getRoleLabel(fallbackRole)
 }
 
+let coachTeamRoutePrefetchPromise: Promise<unknown> | null = null
+let coachReportsRoutePrefetchPromise: Promise<unknown> | null = null
+let coachTrainingPlanRoutePrefetchPromise: Promise<unknown> | null = null
+let coachTestWeekRoutePrefetchPromise: Promise<unknown> | null = null
+
+function prefetchCoachTeamRoute() {
+  if (!coachTeamRoutePrefetchPromise) {
+    coachTeamRoutePrefetchPromise = import("@/app/(authenticated)/coach/teams/[teamId]/page")
+  }
+  return coachTeamRoutePrefetchPromise
+}
+
+function prefetchCoachReportsRoute() {
+  if (!coachReportsRoutePrefetchPromise) {
+    coachReportsRoutePrefetchPromise = import("@/app/(authenticated)/coach/reports/page")
+  }
+  return coachReportsRoutePrefetchPromise
+}
+
+function prefetchCoachTrainingPlanRoute() {
+  if (!coachTrainingPlanRoutePrefetchPromise) {
+    coachTrainingPlanRoutePrefetchPromise = import("@/app/(authenticated)/coach/training-plan/page")
+  }
+  return coachTrainingPlanRoutePrefetchPromise
+}
+
+function prefetchCoachTestWeekRoute() {
+  if (!coachTestWeekRoutePrefetchPromise) {
+    coachTestWeekRoutePrefetchPromise = import("@/app/(authenticated)/coach/test-week/page")
+  }
+  return coachTestWeekRoutePrefetchPromise
+}
+
+function prefetchCoachLink(linkLabel: string) {
+  if (linkLabel === "Teams") return prefetchCoachTeamRoute()
+  if (linkLabel === "Reports") return prefetchCoachReportsRoute()
+  if (linkLabel === "Plan") return prefetchCoachTrainingPlanRoute()
+  if (linkLabel === "Test") return prefetchCoachTestWeekRoute()
+  return Promise.resolve()
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { role, userEmail } = useRole()
   const { pathname } = useLocation()
@@ -273,6 +314,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={link.href}
                 to={link.href}
+                onMouseEnter={() => {
+                  if (role === "coach") void prefetchCoachLink(link.label)
+                }}
+                onFocus={() => {
+                  if (role === "coach") void prefetchCoachLink(link.label)
+                }}
+                onPointerDown={() => {
+                  if (role === "coach") void prefetchCoachLink(link.label)
+                }}
                 className={cn(
                   "group flex items-center justify-between rounded-[22px] px-4 py-3.5 text-sm font-medium transition-all duration-200",
                   isActive
@@ -682,6 +732,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Link
                     key={link.href}
                     to={link.href}
+                    onMouseEnter={() => {
+                      if (role === "coach") void prefetchCoachLink(link.label)
+                    }}
+                    onFocus={() => {
+                      if (role === "coach") void prefetchCoachLink(link.label)
+                    }}
+                    onPointerDown={() => {
+                      if (role === "coach") void prefetchCoachLink(link.label)
+                    }}
                     aria-label={link.label}
                     title={link.label}
                     className={cn(
