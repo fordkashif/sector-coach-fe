@@ -50,6 +50,7 @@ export default function CoachTeamsPage() {
   const [backendTeams, setBackendTeams] = useState<Team[]>([])
   const [backendAthletes, setBackendAthletes] = useState<Athlete[]>([])
   const [generatedInviteLinks, setGeneratedInviteLinks] = useState<Record<string, string>>({})
+  const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({})
   const [assignableCoaches, setAssignableCoaches] = useState<ClubAdminAssignableCoachOption[]>([])
   const [newTeamName, setNewTeamName] = useState("")
   const [newTeamEventGroup, setNewTeamEventGroup] = useState<EventGroup>("Sprint")
@@ -444,6 +445,18 @@ export default function CoachTeamsPage() {
                         </DialogHeader>
                         <div className="space-y-4">
                           <div className="space-y-2">
+                            <Label htmlFor={`invite-email-${team.id}`}>Athlete email</Label>
+                            <Input
+                              id={`invite-email-${team.id}`}
+                              type="email"
+                              placeholder="athlete@email.com"
+                              value={inviteEmails[team.id] ?? ""}
+                              onChange={(event) =>
+                                setInviteEmails((current) => ({ ...current, [team.id]: event.target.value }))
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
                             <Label htmlFor={`invite-link-${team.id}`}>Invite link</Label>
                             <div className="flex items-center gap-2">
                               <Input
@@ -487,7 +500,11 @@ export default function CoachTeamsPage() {
                             className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                             onClick={async () => {
                               if (isSupabaseMode) {
-                                const result = await createAthleteInviteForCurrentCoach({ teamId: team.id, expiresInDays: 7 })
+                                const result = await createAthleteInviteForCurrentCoach({
+                                  teamId: team.id,
+                                  email: inviteEmails[team.id] ?? "",
+                                  expiresInDays: 7,
+                                })
                                 if (!result.ok) {
                                   setBackendError(result.error.message)
                                   return

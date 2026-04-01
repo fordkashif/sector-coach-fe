@@ -28,7 +28,6 @@ export default function AthleteClaimPage() {
   const [message, setMessage] = useState("Checking invite...")
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState<AthleteInvitePreview | null>(null)
-  const [email, setEmail] = useState("")
   const [fullName, setFullName] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -78,13 +77,28 @@ export default function AthleteClaimPage() {
         setPreview(invitePreview)
       }
 
+      if (!invitePreview.email) {
+        if (!cancelled) {
+          setStage("error")
+          setMessage("This athlete invite is missing an invited email. Generate a new athlete invite.")
+        }
+        return
+      }
+
       const { data: sessionData } = await supabase.auth.getSession()
       if (!sessionData.session) {
         if (!cancelled) {
-          setStage("needs-auth")
-          setMessage("Claim this athlete invite here, or sign in if you already have an athlete account.")
           setFullName(invitePreview.teamName ? `${invitePreview.teamName} Athlete` : "")
-          setRequiresPassword(true)
+          setError(null)
+          if (invitePreview.hasExistingAccount) {
+            setRequiresPassword(false)
+            setStage("needs-auth")
+            setMessage(`This invite is for ${invitePreview.email ?? "the invited athlete email"}. Sign in with that account to continue.`)
+          } else {
+            setRequiresPassword(true)
+            setStage("setup")
+            setMessage("Complete your athlete setup to claim this invite and enter the workspace.")
+          }
         }
         return
       }
@@ -102,6 +116,17 @@ export default function AthleteClaimPage() {
         if (!cancelled) {
           setStage("error")
           setMessage(`This invite must be claimed with an athlete account. Current role: ${actor.role}.`)
+        }
+        return
+      }
+
+      if (
+        invitePreview.email &&
+        (sessionData.session.user.email ?? "").trim().toLowerCase() !== invitePreview.email.trim().toLowerCase()
+      ) {
+        if (!cancelled) {
+          setStage("error")
+          setMessage(`This invite is for ${invitePreview.email}. Sign in with that email to continue.`)
         }
         return
       }
@@ -154,8 +179,8 @@ export default function AthleteClaimPage() {
 
   const handleClaim = async () => {
     if (!preview) return
-    if (!email.trim()) {
-      setError("Email is required.")
+    if (!preview.email) {
+      setError("This athlete invite is missing an invited email. Generate a new athlete invite.")
       return
     }
     if (!fullName.trim()) {
@@ -182,7 +207,7 @@ export default function AthleteClaimPage() {
 
     const claimResult = await claimAthleteInviteAccount({
       inviteId,
-      email: email.trim().toLowerCase(),
+      email: preview.email.trim().toLowerCase(),
       password: password.trim(),
       displayName: fullName.trim(),
     })
@@ -194,7 +219,7 @@ export default function AthleteClaimPage() {
     }
 
     const signInResult = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: preview.email.trim().toLowerCase(),
       password: password.trim(),
     })
     if (signInResult.error || !signInResult.data.session) {
@@ -281,17 +306,21 @@ export default function AthleteClaimPage() {
               <p className="mt-1 text-sm font-medium text-slate-950">{preview?.teamName ?? "Loading..."}</p>
             </div>
             <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Invited email</p>
+              <p className="mt-1 text-sm font-medium text-slate-950">{preview?.email ?? "Loading..."}</p>
+            </div>
+            <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Event group</p>
               <p className="mt-1 text-sm font-medium text-slate-950">{preview?.eventGroup ?? "General athlete access"}</p>
             </div>
 
             {stage === "needs-auth" ? (
-              <div className="flex flex-wrap gap-3">
+              <div className="space-y-3">
+                <p className="text-sm text-slate-500">
+                  PaceLab found an existing athlete account for this invited email. Sign in with that account and the invite will attach automatically.
+                </p>
                 <Button asChild className="h-11 rounded-full px-5">
-                  <Link to={`/login?redirect=${encodeURIComponent(`/athlete/claim/${inviteId}`)}`}>I already have an account</Link>
-                </Button>
-                <Button type="button" variant="outline" className="h-11 rounded-full px-5" onClick={() => setStage("setup")}>
-                  First-time athlete setup
+                  <Link to={`/login?redirect=${encodeURIComponent(`/athlete/claim/${inviteId}`)}`}>Sign in to continue</Link>
                 </Button>
               </div>
             ) : null}
@@ -329,12 +358,6 @@ export default function AthleteClaimPage() {
 
           {stage === "setup" ? (
             <div className="mt-4 grid gap-4">
-              {requiresPassword ? (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-slate-950">Email</Label>
-                  <Input className="h-12 rounded-[16px] border-slate-200 bg-slate-50" value={email} onChange={(event) => setEmail(event.target.value)} />
-                </div>
-              ) : null}
               <div className="space-y-2">
                 <Label className="text-sm font-medium text-slate-950">Full name</Label>
                 <Input className="h-12 rounded-[16px] border-slate-200 bg-slate-50" value={fullName} onChange={(event) => setFullName(event.target.value)} />
@@ -352,7 +375,9 @@ export default function AthleteClaimPage() {
                 </>
               ) : null}
               <p className="text-sm text-slate-500">
-                New athletes claim the account directly from this invite. Existing athletes who already signed in only need to complete their profile details.
+                {requiresPassword
+                  ? "No existing athlete account was found for this invited email, so this invite will create the athlete account directly."
+                  : "Your athlete account is already attached. Finish the remaining profile details and continue into the workspace."}
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button type="button" disabled={submitting} className="h-11 rounded-full px-5" onClick={() => void (requiresPassword ? handleClaim() : handleExistingAthleteSetup())}>
@@ -366,12 +391,12 @@ export default function AthleteClaimPage() {
           ) : (
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="font-medium text-slate-950">1. Claim or sign in with an athlete account</p>
-                <p className="mt-1">This invite should create a usable athlete account directly from the claim surface when needed.</p>
+                <p className="font-medium text-slate-950">1. PaceLab checks the invited email first</p>
+                <p className="mt-1">If the email already has an athlete account, the invite goes straight to sign-in. If not, the invite goes straight to first-time setup.</p>
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="font-medium text-slate-950">2. Confirm the team assignment</p>
-                <p className="mt-1">Invite acceptance binds the athlete record to the correct team instead of leaving the join action as local-only state.</p>
+                <p className="font-medium text-slate-950">2. Confirm the invited athlete email</p>
+                <p className="mt-1">Invite acceptance binds the athlete record to the correct team and the exact invited email.</p>
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="font-medium text-slate-950">3. Continue into the athlete workspace</p>

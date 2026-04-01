@@ -36,6 +36,7 @@ function requireSupabaseClient(operation: string): ClientResolution {
 
 export async function createAthleteInviteForCurrentCoach(params: {
   teamId: string
+  email: string
   expiresInDays?: number
 }): Promise<Result<{ inviteId: string; invitePath: string }>> {
   const clientResult = requireSupabaseClient("createAthleteInviteForCurrentCoach")
@@ -47,6 +48,9 @@ export async function createAthleteInviteForCurrentCoach(params: {
 
   const expiryDays = Math.max(1, Math.min(params.expiresInDays ?? 7, 30))
   const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString()
+  const inviteEmail = params.email.trim().toLowerCase()
+
+  if (!inviteEmail) return err("VALIDATION", "Athlete email is required.")
 
   const { data: profile, error: profileError } = await clientResult.client
     .from("profiles")
@@ -65,6 +69,7 @@ export async function createAthleteInviteForCurrentCoach(params: {
     .insert({
       tenant_id: profile.tenant_id,
       team_id: params.teamId,
+      email: inviteEmail,
       invited_by_user_id: userId,
       status: "pending",
       expires_at: expiresAt,

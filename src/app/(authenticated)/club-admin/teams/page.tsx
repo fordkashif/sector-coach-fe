@@ -75,7 +75,10 @@ export default function ClubAdminTeamsPage() {
   const [backendError, setBackendError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [editTeamId, setEditTeamId] = useState<string | null>(null)
+  const [inviteTeamId, setInviteTeamId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [inviteSaving, setInviteSaving] = useState(false)
+  const [athleteInviteEmail, setAthleteInviteEmail] = useState("")
   const [newTeamName, setNewTeamName] = useState("")
   const [newTeamEventGroup, setNewTeamEventGroup] = useState<EventGroup>("Sprint")
   const [newTeamLeadCoachUserId, setNewTeamLeadCoachUserId] = useState("none")
@@ -353,7 +356,7 @@ export default function ClubAdminTeamsPage() {
       return
     }
 
-    const result = await createAthleteInviteForCurrentCoach({ teamId, expiresInDays: 7 })
+    const result = await createAthleteInviteForCurrentCoach({ teamId, email: athleteInviteEmail, expiresInDays: 7 })
     if (!result.ok) {
       setBackendError(result.error.message)
       return
@@ -404,7 +407,15 @@ export default function ClubAdminTeamsPage() {
           <Button asChild className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#2f80ff_100%)] px-5 text-white hover:opacity-95">
             <Link to={`/coach/teams/${team.id}`}>Open team</Link>
           </Button>
-          <Button type="button" variant="outline" className="h-11 rounded-full border-slate-200 px-5" onClick={() => void handleGenerateInvite(team.id)}>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 rounded-full border-slate-200 px-5"
+            onClick={() => {
+              setAthleteInviteEmail("")
+              setInviteTeamId(team.id)
+            }}
+          >
             <HugeiconsIcon icon={Link01Icon} className="size-4" />
             Generate athlete invite
           </Button>
@@ -625,6 +636,46 @@ export default function ClubAdminTeamsPage() {
             </Button>
             <Button type="button" disabled={saving || !editName.trim()} onClick={() => void handleSaveEdit()}>
               {saving ? "Saving..." : "Save changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(inviteTeamId)} onOpenChange={(open) => (!open ? setInviteTeamId(null) : undefined)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Generate athlete invite</DialogTitle>
+            <DialogDescription>
+              Athlete invites are email-addressed so PaceLab can decide whether to sign in or create the athlete account automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label>Athlete email</Label>
+              <Input
+                type="email"
+                placeholder="athlete@email.com"
+                value={athleteInviteEmail}
+                onChange={(event) => setAthleteInviteEmail(event.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" className="border-slate-200" onClick={() => setInviteTeamId(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={inviteSaving || !inviteTeamId || !athleteInviteEmail.trim()}
+              onClick={async () => {
+                if (!inviteTeamId) return
+                setInviteSaving(true)
+                await handleGenerateInvite(inviteTeamId)
+                setInviteSaving(false)
+                setInviteTeamId(null)
+              }}
+            >
+              {inviteSaving ? "Generating..." : "Generate invite"}
             </Button>
           </DialogFooter>
         </DialogContent>

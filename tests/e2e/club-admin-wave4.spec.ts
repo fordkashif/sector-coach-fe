@@ -53,6 +53,8 @@ test("club-admin can create, update, archive, restore, and invite athletes for t
 
   const teamCard = page.locator("article").filter({ hasText: teamName }).first()
   await teamCard.getByRole("button", { name: "Generate athlete invite" }).click()
+  await page.getByRole("dialog").getByPlaceholder("athlete@email.com").fill(`athlete-wave4-${Date.now()}@pacelab.local`)
+  await page.getByRole("dialog").getByRole("button", { name: "Generate invite" }).click()
   await expect(teamCard).toContainText("/athlete/claim/")
 
   await teamCard.getByRole("button", { name: "Edit team" }).click()

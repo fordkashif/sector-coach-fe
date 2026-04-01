@@ -10,6 +10,8 @@ export type AthleteInvitePreview = {
   organizationName: string
   eventGroup: string | null
   status: "pending" | "accepted" | "expired" | "revoked"
+  email: string | null
+  hasExistingAccount: boolean
 }
 
 export type AthleteOnboardingState = {
@@ -53,6 +55,8 @@ export async function getPublicAthleteInvitePreview(inviteId: string): Promise<R
     organizationName: row.organization_name,
     eventGroup: row.event_group ?? null,
     status: row.status,
+    email: row.email ?? null,
+    hasExistingAccount: Boolean(row.has_existing_account),
   })
 }
 

@@ -86,6 +86,7 @@ export function CoachTeamDetailContent({ teamId, data }: CoachTeamDetailContentP
   )
   const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null)
   const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState("")
   const [activeTab, setActiveTab] = useState("roster")
   const team = teamsSource.find((item) => item.id === teamId)
   const inviteLink = generatedInviteLink ?? `/athlete/claim/${teamId}`
@@ -380,9 +381,19 @@ export function CoachTeamDetailContent({ teamId, data }: CoachTeamDetailContentP
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Invite athletes to {team.name}</DialogTitle>
-                    <DialogDescription>Copy link or share the QR code placeholder.</DialogDescription>
+                    <DialogDescription>Invite an athlete by email so PaceLab can route existing accounts and first-time setup automatically.</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="detail-invite-email">Athlete email</Label>
+                      <Input
+                        id="detail-invite-email"
+                        type="email"
+                        placeholder="athlete@email.com"
+                        value={inviteEmail}
+                        onChange={(event) => setInviteEmail(event.target.value)}
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="detail-invite-link">Invite link</Label>
                       <div className="flex items-center gap-2">
@@ -430,7 +441,11 @@ export function CoachTeamDetailContent({ teamId, data }: CoachTeamDetailContentP
                       onClick={async () => {
                         setInviteError(null)
                         if (isSupabaseMode) {
-                          const result = await createAthleteInviteForCurrentCoach({ teamId, expiresInDays: 7 })
+                          const result = await createAthleteInviteForCurrentCoach({
+                            teamId,
+                            email: inviteEmail,
+                            expiresInDays: 7,
+                          })
                           if (!result.ok) {
                             setInviteError(result.error.message)
                             return

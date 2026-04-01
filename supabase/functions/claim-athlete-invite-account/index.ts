@@ -54,13 +54,16 @@ Deno.serve(async (request) => {
 
   const { data: invite, error: inviteError } = await serviceClient
     .from("athlete_invites")
-    .select("id, tenant_id, team_id, status, expires_at")
+    .select("id, tenant_id, team_id, email, status, expires_at")
     .eq("id", inviteId)
     .maybeSingle()
 
   if (inviteError) return json(400, { error: inviteError.message })
   if (!invite) return json(404, { error: "Athlete invite not found." })
   if (invite.status !== "pending") return json(400, { error: "Athlete invite is not pending." })
+  if ((invite.email ?? "").trim().toLowerCase() !== email) {
+    return json(400, { error: "This invite is for a different email address." })
+  }
   if (invite.expires_at && new Date(invite.expires_at).getTime() < Date.now()) {
     return json(400, { error: "Athlete invite has expired." })
   }
