@@ -93,6 +93,8 @@ Deno.serve(async (request) => {
       user_metadata: {
         ...(existingUser.user_metadata ?? {}),
         display_name: displayName,
+        role: "coach",
+        tenant_id: invite.tenant_id,
       },
     })
 
@@ -106,6 +108,8 @@ Deno.serve(async (request) => {
     email_confirm: true,
     user_metadata: {
       display_name: displayName,
+      role: "coach",
+      tenant_id: invite.tenant_id,
     },
   })
 

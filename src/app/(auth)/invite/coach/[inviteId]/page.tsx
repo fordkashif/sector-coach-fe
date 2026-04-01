@@ -13,7 +13,6 @@ import {
   getPublicCoachInvitePreview,
   type CoachInvitePreview,
 } from "@/lib/data/coach/invite-claim-data"
-import { resolveSessionActor } from "@/lib/supabase/actor"
 import { getBackendMode } from "@/lib/supabase/config"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 
@@ -91,15 +90,6 @@ export default function CoachInviteAcceptPage() {
             setStage("setup")
             setMessage("Complete your coach setup to claim this invite and enter the workspace.")
           }
-        }
-        return
-      }
-
-      const actor = await resolveSessionActor(supabase, sessionData.session)
-      if (!actor) {
-        if (!cancelled) {
-          setStage("error")
-          setMessage("Sign-in succeeded, but your session did not resolve to an app role.")
         }
         return
       }
