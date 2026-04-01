@@ -88,7 +88,7 @@ test("tenant audit and platform audit remain separated", async ({ page }) => {
 
   await page.goto("/club-admin/audit")
   await page.getByPlaceholder("Search logs...").fill("billing_update")
-  await expect(page.locator("body")).toContainText("billing_update")
+  await expect(page.locator("body")).toContainText("billing update")
   await page.getByPlaceholder("Search logs...").fill(organizationName)
   await expect(page.locator("body")).toContainText("No activity logs yet.")
 

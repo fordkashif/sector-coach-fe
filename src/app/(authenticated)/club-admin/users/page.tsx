@@ -23,6 +23,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
+import { DataSurfaceToolbar } from "@/components/ui/data-surface-toolbar"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StandardPageHeader } from "@/components/ui/standard-page-header"
@@ -42,6 +43,11 @@ import {
   persistUsers,
 } from "../state"
 import { cn } from "@/lib/utils"
+
+function formatInviteTeamLabel(teamId: string | undefined, teams: Array<{ id: string; name: string }>) {
+  if (!teamId) return "No team"
+  return teams.find((team) => team.id === teamId)?.name ?? teamId
+}
 
 export default function ClubAdminUsersPage() {
   const backendMode = getBackendMode()
@@ -242,6 +248,7 @@ export default function ClubAdminUsersPage() {
     { label: "Active", value: users.filter((user) => user.status === "active").length },
     { label: "Suspended", value: users.filter((user) => user.status !== "active").length },
   ]
+  const pendingInvites = invites.filter((invite) => invite.status === "pending").length
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
@@ -265,14 +272,18 @@ export default function ClubAdminUsersPage() {
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] xl:items-start">
         <div className="mobile-card-primary">
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Invite Access</p>
-              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Send coach invite</h2>
-              <p className="text-sm text-slate-500">Start coach access from an invite instead of exposing the form inline on the page.</p>
-            </div>
-            <div className="shrink-0">
-              {useDesktopInviteDialog ? (
+          <DataSurfaceToolbar
+            className="mb-4"
+            eyebrow="Invite access"
+            title="Send coach invite"
+            description="Start coach access from an invite instead of exposing the form inline on the page."
+            status={
+              <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+                Pending invites: <span className="ml-1 font-medium text-slate-700">{pendingInvites}</span>
+              </div>
+            }
+            controls={
+              useDesktopInviteDialog ? (
                 <Dialog open={inviteComposerOpen} onOpenChange={setInviteComposerOpen}>
                   <DialogTrigger asChild>
                     <Button
@@ -346,9 +357,9 @@ export default function ClubAdminUsersPage() {
                     </DrawerFooter>
                   </DrawerContent>
                 </Drawer>
-              )}
-            </div>
-          </div>
+              )
+            }
+          />
           <div className="mt-4 space-y-3">
             <div className="space-y-2">
               {invites.length === 0 ? (
@@ -372,37 +383,72 @@ export default function ClubAdminUsersPage() {
                 />
               ) : (
                 invites.map((invite) => (
-                  <div key={invite.id} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                    <div>
-                      <span className="font-medium text-slate-950">{invite.email}</span> | {invite.status} | {invite.teamId ?? "No team"}
+                  <div key={invite.id} className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Email</p>
+                          <p className="mt-1 break-all text-sm font-medium text-slate-950">{invite.email}</p>
+                        </div>
+                        <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Status</p>
+                          <p className="mt-1">
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]",
+                                invite.status === "pending" && "status-chip-warning",
+                                invite.status === "accepted" && "status-chip-success",
+                                invite.status === "expired" && "status-chip-neutral",
+                              )}
+                            >
+                              {invite.status}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Team</p>
+                          <p className="mt-1 text-sm font-medium text-slate-950">
+                            {formatInviteTeamLabel(invite.teamId, teams)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3 text-sm text-slate-500">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Created</p>
+                        <p className="mt-1 text-sm font-medium text-slate-950">{invite.createdAt}</p>
+                      </div>
                     </div>
                     {invite.inviteUrl ? (
-                      <div className="mt-2 flex items-center gap-2">
-                        <code className="rounded bg-white px-2 py-1 text-xs text-slate-700">{invite.inviteUrl}</code>
-                        {isLocalPreviewEnabled ? (
+                      <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                        <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Invite link</p>
+                          <code className="mt-1 block break-all text-xs text-slate-700">{invite.inviteUrl}</code>
+                        </div>
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                          {isLocalPreviewEnabled ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="h-9 rounded-full px-4 text-xs"
+                              onClick={() => {
+                                const absoluteUrl = `${window.location.origin}${invite.inviteUrl}`
+                                window.open(absoluteUrl, "_blank", "noopener,noreferrer")
+                              }}
+                            >
+                              Open invite
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             variant="outline"
-                            className="h-8 rounded-full px-3 text-xs"
+                            className="h-9 rounded-full px-4 text-xs"
                             onClick={() => {
                               const absoluteUrl = `${window.location.origin}${invite.inviteUrl}`
-                              window.open(absoluteUrl, "_blank", "noopener,noreferrer")
+                              void navigator.clipboard.writeText(absoluteUrl)
                             }}
                           >
-                            Open invite
+                            Copy link
                           </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="h-8 rounded-full px-3 text-xs"
-                          onClick={() => {
-                            const absoluteUrl = `${window.location.origin}${invite.inviteUrl}`
-                            void navigator.clipboard.writeText(absoluteUrl)
-                          }}
-                        >
-                          Copy link
-                        </Button>
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -412,18 +458,32 @@ export default function ClubAdminUsersPage() {
           </div>
         </div>
         <div className="mobile-card-primary">
-          <div className="space-y-1 border-b border-slate-200 pb-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">User Directory</p>
-            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Access Control</h2>
+          <div className="flex items-end justify-between gap-4 border-b border-slate-200 pb-4">
+            <div className="space-y-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">User Directory</p>
+              <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Access Control</h2>
+            </div>
+            <div className="hidden sm:flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+              Active users: <span className="ml-1 font-medium text-slate-700">{headerStats[2].value}</span>
+            </div>
           </div>
           <div className="mt-4 space-y-3">
             {users.map((user) => (
               <div key={user.id} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="space-y-1">
-                    <p className="font-semibold text-slate-950">{user.name}</p>
-                    <p className="text-sm text-slate-500">{user.email}</p>
-                    <p className="text-sm text-slate-500">{user.teamId ?? "No team"}</p>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <p className="font-semibold text-slate-950">{user.name}</p>
+                      <p className="text-sm text-slate-500">{user.email}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {user.role}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                        {formatInviteTeamLabel(user.teamId, teams)}
+                      </span>
+                    </div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-[150px_120px_auto] sm:items-center">
                     <Select

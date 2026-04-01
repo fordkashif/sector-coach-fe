@@ -383,6 +383,7 @@ export default function ClubAdminReportsPage() {
           <div className="space-y-1 border-b border-slate-200 pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Export Center</p>
             <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Output Actions</h2>
+            <p className="text-sm text-slate-500">Export tenant structure and performance in grouped operational batches.</p>
           </div>
           <div className="mt-4 space-y-3">
             {!hasSnapshotData ? (
@@ -396,31 +397,53 @@ export default function ClubAdminReportsPage() {
                 contentClassName="gap-2"
               />
             ) : null}
-            {[
-              { title: "Users CSV", body: "All users with role, status, and current team assignment.", action: exportClubUsers, primary: true },
-              { title: "Teams CSV", body: "Team structure, event group, status, and coach assignment.", action: exportTeams, primary: false },
-              { title: "Performance CSV", body: "Readiness, plan adherence, and latest PR data for athletes.", action: exportPerformance, primary: false },
-            ].map((item) => (
-              <button
-                key={item.title}
-                type="button"
-                onClick={item.action}
-                className={cn(
-                  "w-full rounded-[18px] border px-4 py-4 text-left transition hover:-translate-y-0.5",
-                  item.primary
-                    ? "border-[#cfe2ff] bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_100%)] shadow-[0_12px_28px_rgba(31,140,255,0.12)]"
-                    : "border-slate-200 bg-slate-50 hover:border-[#cfe2ff] hover:bg-[#f8fbff]",
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-950">{item.title}</p>
-                    <p className="mt-1 text-sm text-slate-500">{item.body}</p>
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Structure exports</p>
+              <div className="mt-3 space-y-3">
+                {[
+                  { title: "Users CSV", body: "All users with role, status, and current team assignment.", action: exportClubUsers, primary: true },
+                  { title: "Teams CSV", body: "Team structure, event group, status, and coach assignment.", action: exportTeams, primary: false },
+                ].map((item) => (
+                  <button
+                    key={item.title}
+                    type="button"
+                    onClick={item.action}
+                    className={cn(
+                      "w-full rounded-[18px] border px-4 py-4 text-left transition hover:-translate-y-0.5",
+                      item.primary
+                        ? "border-[#cfe2ff] bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_100%)] shadow-[0_12px_28px_rgba(31,140,255,0.12)]"
+                        : "border-slate-200 bg-white hover:border-[#cfe2ff] hover:bg-[#f8fbff]",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-950">{item.title}</p>
+                        <p className="mt-1 text-sm text-slate-500">{item.body}</p>
+                      </div>
+                      <HugeiconsIcon icon={FileDownloadIcon} className="mt-0.5 size-4 text-[#1f8cff]" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3">
+              <p className="px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Performance exports</p>
+              <div className="mt-3 space-y-3">
+                <button
+                  type="button"
+                  onClick={exportPerformance}
+                  className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-[#cfe2ff] hover:bg-[#f8fbff]"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-slate-950">Performance CSV</p>
+                      <p className="mt-1 text-sm text-slate-500">Readiness, plan adherence, and latest PR data for athletes.</p>
+                    </div>
+                    <HugeiconsIcon icon={FileDownloadIcon} className="mt-0.5 size-4 text-[#1f8cff]" />
                   </div>
-                  <HugeiconsIcon icon={FileDownloadIcon} className="mt-0.5 size-4 text-[#1f8cff]" />
-                </div>
-              </button>
-            ))}
+                </button>
+              </div>
+            </div>
             <Button
               type="button"
               variant="outline"

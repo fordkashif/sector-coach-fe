@@ -11,6 +11,7 @@ import {
 } from "@tanstack/react-table"
 import { ClubAdminNav } from "@/components/club-admin/admin-nav"
 import { Button } from "@/components/ui/button"
+import { DataSurfaceToolbar } from "@/components/ui/data-surface-toolbar"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
 import { Input } from "@/components/ui/input"
 import { StandardPageHeader } from "@/components/ui/standard-page-header"
@@ -18,8 +19,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { AuditEvent } from "@/lib/mock-audit"
 import { getBackendMode } from "@/lib/supabase/config"
 import { getClubAdminAuditEvents } from "@/lib/data/club-admin/ops-data"
+import { cn } from "@/lib/utils"
 
 const columnHelper = createColumnHelper<AuditEvent>()
+
+function formatActionLabel(value: string) {
+  return value.replaceAll("_", " ")
+}
+
+function AuditActionBadge({ action }: { action: string }) {
+  const tone =
+    action.includes("disable") || action.includes("revoke")
+      ? "status-chip-danger"
+      : action.includes("invite") || action.includes("create")
+        ? "status-chip-info"
+        : "status-chip-neutral"
+
+  return <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]", tone)}>{formatActionLabel(action)}</span>
+}
 
 export default function ClubAdminAuditPage() {
   const backendMode = getBackendMode()
@@ -97,13 +114,25 @@ export default function ClubAdminAuditPage() {
     () => [
       columnHelper.accessor("action", {
         header: "Action",
-        cell: (info) => <span className="font-semibold text-slate-950">{info.getValue()}</span>,
+        cell: (info) => <AuditActionBadge action={info.getValue()} />,
       }),
       columnHelper.accessor("actor", {
         header: "Actor",
+        cell: (info) => (
+          <div className="space-y-1">
+            <p className="font-medium text-slate-950">{info.getValue()}</p>
+            <p className="text-xs text-slate-500">Tenant actor</p>
+          </div>
+        ),
       }),
       columnHelper.accessor("target", {
         header: "Target",
+        cell: (info) => (
+          <div className="space-y-1">
+            <p className="font-medium text-slate-950">{info.getValue()}</p>
+            <p className="text-xs text-slate-500">Affected entity</p>
+          </div>
+        ),
       }),
       columnHelper.accessor("detail", {
         header: "Detail",
@@ -144,29 +173,40 @@ export default function ClubAdminAuditPage() {
         </section>
       ) : null}
 
-      <section className="mobile-card-primary">
-        <div className="space-y-1 border-b border-slate-200 pb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Filters</p>
-          <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Search Activity</h2>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Input className="h-12 rounded-[16px] border-slate-200 bg-slate-50" placeholder="Search logs..." value={query} onChange={(event) => setQuery(event.target.value)} />
-          <Select value={actionFilter} onValueChange={setActionFilter}>
-            <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All actions</SelectItem>
-              {actions.map((action) => (
-                <SelectItem key={action} value={action}>{action}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </section>
+      <DataSurfaceToolbar
+        eyebrow="Audit filters"
+        title="Search activity"
+        description="Review admin actions by actor, target, or action type and isolate the exact operational slice you need."
+        status={
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+            Action: <span className="ml-1 font-medium text-slate-700">{actionFilter === "all" ? "All actions" : actionFilter}</span>
+          </div>
+        }
+        search={
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input className="h-12 rounded-[16px] border-slate-200 bg-slate-50" placeholder="Search logs..." value={query} onChange={(event) => setQuery(event.target.value)} />
+            <Select value={actionFilter} onValueChange={setActionFilter}>
+              <SelectTrigger className="h-12 rounded-[16px] border-slate-200 bg-slate-50"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All actions</SelectItem>
+                {actions.map((action) => (
+                  <SelectItem key={action} value={action}>{action}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      />
 
       <section className="mobile-card-primary">
-        <div className="space-y-1 border-b border-slate-200 pb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Entries</p>
-          <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">{filtered.length} matched records</h2>
+        <div className="flex items-end justify-between gap-4 border-b border-slate-200 pb-4">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Entries</p>
+            <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">{filtered.length} matched records</h2>
+          </div>
+          <div className="hidden sm:flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+            {hasFilters ? "Filtered view" : "Full history"}
+          </div>
         </div>
         <div className="mt-4 space-y-3 md:hidden">
           {filtered.length === 0 ? (
@@ -204,11 +244,25 @@ export default function ClubAdminAuditPage() {
             filtered.map((entry) => (
               <div key={entry.id} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-950">{entry.action}</p>
+                  <AuditActionBadge action={entry.action} />
                   <p className="text-xs text-slate-500">{entry.at}</p>
                 </div>
-                <p className="mt-2 text-sm text-slate-500">Actor: {entry.actor} | Target: {entry.target}</p>
-                {entry.detail ? <p className="mt-1 text-xs text-slate-500">{entry.detail}</p> : null}
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Actor</p>
+                    <p className="mt-1 text-sm font-medium text-slate-950">{entry.actor}</p>
+                  </div>
+                  <div className="rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Target</p>
+                    <p className="mt-1 text-sm font-medium text-slate-950">{entry.target}</p>
+                  </div>
+                </div>
+                {entry.detail ? (
+                  <div className="mt-3 rounded-[16px] border border-slate-200 bg-white px-3 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Detail</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{entry.detail}</p>
+                  </div>
+                ) : null}
               </div>
             ))
           )}

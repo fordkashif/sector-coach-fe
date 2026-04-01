@@ -12,6 +12,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { DataSurfaceToolbar } from "@/components/ui/data-surface-toolbar"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
 import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
@@ -89,6 +90,24 @@ function InfoPill({ label, value }: { label: string; value: string }) {
     <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className="mt-1 text-sm font-medium text-slate-950">{value}</p>
+    </div>
+  )
+}
+
+function RequestMetaCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string
+  value: string
+  detail?: string | null
+}) {
+  return (
+    <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-950">{value}</p>
+      {detail ? <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p> : null}
     </div>
   )
 }
@@ -786,158 +805,148 @@ export default function PlatformAdminRequestsPage() {
         />
       ) : null}
 
-      <section className="flex justify-end">
-        <div className="flex w-full flex-col gap-3 rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-6">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3 sm:block">
-                <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Queue filters</h2>
+      <DataSurfaceToolbar
+        eyebrow="Queue controls"
+        title="Queue filters"
+        description="Search by organization, requestor, role, region, plan, or tenant id, then narrow the queue by status."
+        status={
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+            Status: <span className="ml-1 font-medium text-slate-700">{statusFilterLabels[statusFilter]}</span>
+          </div>
+        }
+        controls={
+          <>
+            <div className="flex items-center justify-between gap-3 sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={toolbarIconButtonClassName}
+                    aria-label="Open request queue actions"
+                  >
+                    <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Queue actions</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setStatusFilter("all")}>Show all requests</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setStatusFilter("pending")}>Show pending only</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => void handleExportQueueCsv()}>Export CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void handleExportQueuePdf()}>Export PDF</DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={submittingId === "dispatch-email-queue"}
+                    onClick={() => void handleDispatchPendingEmails()}
+                  >
+                    Dispatch pending emails
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="hidden items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 lg:flex">
+              <HugeiconsIcon icon={SquareIcon} className={cn("size-4", desktopViewMode === "cards" ? "text-[#1368ff]" : "text-slate-400")} />
+              <Switch
+                checked={desktopViewMode === "table"}
+                onCheckedChange={(checked) => setDesktopViewMode(checked ? "table" : "cards")}
+                aria-label="Switch between card and table views for the request queue"
+              />
+              <HugeiconsIcon icon={TableIcon} className={cn("size-4", desktopViewMode === "table" ? "text-[#1368ff]" : "text-slate-400")} />
+            </div>
+            <div className="hidden items-center gap-2 sm:flex">
+              <Tooltip>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className={cn("sm:hidden", toolbarIconButtonClassName)}
-                      aria-label="Open request queue actions"
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className={cn(
+                          toolbarIconButtonClassName,
+                          statusFilter !== "all" && "border-[#1368ff] bg-[#eef5ff] text-[#1368ff]",
+                        )}
+                        aria-label={`Filter requests by status. Current filter: ${statusFilterLabels[statusFilter]}`}
+                      >
+                        <HugeiconsIcon icon={FilterHorizontalIcon} className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuLabel>Status filter</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={statusFilter}
+                      onValueChange={(value) => setStatusFilter(value as PlatformAdminRequestRecord["status"] | "all")}
                     >
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Queue actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => setStatusFilter("all")}>Show all requests</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setStatusFilter("pending")}>Show pending only</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void handleExportQueueCsv()}>Export CSV</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void handleExportQueuePdf()}>Export PDF</DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={submittingId === "dispatch-email-queue"}
-                      onClick={() => void handleDispatchPendingEmails()}
-                    >
-                      Dispatch pending emails
-                    </DropdownMenuItem>
+                      <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="pending">Pending</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="approved">Approved</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="rejected">Rejected</DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="cancelled">Cancelled</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </div>
-              <p className="max-w-[64ch] text-sm text-slate-500">
-                Search by organization, requestor, role, region, plan, or tenant id, then narrow the queue by status.
-              </p>
-              <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
-                Status: <span className="ml-1 font-medium text-slate-700">{statusFilterLabels[statusFilter]}</span>
-              </div>
+                <TooltipContent side="bottom">Filter requests</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={toolbarIconButtonClassName}
+                    aria-label="Export request queue as CSV"
+                    onClick={() => void handleExportQueueCsv()}
+                  >
+                    <HugeiconsIcon icon={FilePasteIcon} className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Export CSV</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={toolbarIconButtonClassName}
+                    aria-label="Open print or PDF export for request queue"
+                    onClick={() => void handleExportQueuePdf()}
+                  >
+                    <HugeiconsIcon icon={TextCreationIcon} className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Export PDF</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={toolbarIconButtonClassName}
+                    disabled={submittingId === "dispatch-email-queue"}
+                    aria-label="Dispatch pending notification emails"
+                    onClick={() => void handleDispatchPendingEmails()}
+                  >
+                    <HugeiconsIcon icon={Notification01Icon} className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Dispatch pending emails</TooltipContent>
+              </Tooltip>
             </div>
-            <div className="flex flex-wrap items-center gap-2 self-start">
-              <div className="hidden items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 lg:flex">
-                <HugeiconsIcon icon={SquareIcon} className={cn("size-4", desktopViewMode === "cards" ? "text-[#1368ff]" : "text-slate-400")} />
-                <Switch
-                  checked={desktopViewMode === "table"}
-                  onCheckedChange={(checked) => setDesktopViewMode(checked ? "table" : "cards")}
-                  aria-label="Switch between card and table views for the request queue"
-                />
-                <HugeiconsIcon icon={TableIcon} className={cn("size-4", desktopViewMode === "table" ? "text-[#1368ff]" : "text-slate-400")} />
-              </div>
-
-              <div className="hidden items-center gap-2 sm:flex">
-                <Tooltip>
-                  <DropdownMenu>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className={cn(
-                            toolbarIconButtonClassName,
-                            statusFilter !== "all" && "border-[#1368ff] bg-[#eef5ff] text-[#1368ff]",
-                          )}
-                          aria-label={`Filter requests by status. Current filter: ${statusFilterLabels[statusFilter]}`}
-                        >
-                          <HugeiconsIcon icon={FilterHorizontalIcon} className="size-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                      <DropdownMenuLabel>Status filter</DropdownMenuLabel>
-                      <DropdownMenuRadioGroup
-                        value={statusFilter}
-                        onValueChange={(value) => setStatusFilter(value as PlatformAdminRequestRecord["status"] | "all")}
-                      >
-                        <DropdownMenuRadioItem value="all">All</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="pending">Pending</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="approved">Approved</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="rejected">Rejected</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="cancelled">Cancelled</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <TooltipContent side="bottom">Filter requests</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className={toolbarIconButtonClassName}
-                      aria-label="Export request queue as CSV"
-                      onClick={() => void handleExportQueueCsv()}
-                    >
-                      <HugeiconsIcon icon={FilePasteIcon} className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Export CSV</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className={toolbarIconButtonClassName}
-                      aria-label="Open print or PDF export for request queue"
-                      onClick={() => void handleExportQueuePdf()}
-                    >
-                      <HugeiconsIcon icon={TextCreationIcon} className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Export PDF</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className={toolbarIconButtonClassName}
-                      disabled={submittingId === "dispatch-email-queue"}
-                      aria-label="Dispatch pending notification emails"
-                      onClick={() => void handleDispatchPendingEmails()}
-                    >
-                      <HugeiconsIcon icon={Notification01Icon} className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Dispatch pending emails</TooltipContent>
-                </Tooltip>
-              </div>
-
-
-            </div>
-          </div>
-
-          <div className="pt-1">
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search request queue"
-              className="h-12 rounded-full border-slate-200 bg-slate-50 px-5 text-base lg:max-w-2xl"
-            />
-          </div>
-        </div>
-      </section>
+          </>
+        }
+        search={
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search request queue"
+            className="h-12 rounded-full border-slate-200 bg-slate-50 px-5 text-base lg:max-w-2xl"
+          />
+        }
+      />
 
       {!loading && requests.length > 0 && filteredRequests.length === 0 ? (
         <EmptyStateCard
@@ -991,6 +1000,24 @@ export default function PlatformAdminRequestsPage() {
                       <p className="mt-1 text-sm text-slate-500">{request.requestorName} - {request.requestorEmail}</p>
                     </div>
 
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      <RequestMetaCard
+                        label="Organization"
+                        value={request.organizationType ?? "Not specified"}
+                        detail={request.region ? `Region: ${request.region}` : "Region not provided"}
+                      />
+                      <RequestMetaCard
+                        label="Requestor"
+                        value={request.jobTitle ?? "Title not provided"}
+                        detail={`Contact: ${request.requestorEmail}`}
+                      />
+                      <RequestMetaCard
+                        label="Delivery"
+                        value={request.accessInviteSentAt ? "Initial access sent" : "Awaiting invite"}
+                        detail={request.provisionedTenantId ? `Tenant: ${request.provisionedTenantId}` : "Tenant not provisioned yet"}
+                      />
+                    </div>
+
                     <div className={cn("grid gap-3 xl:grid-cols-4", isExpanded ? "grid-cols-1 sm:grid-cols-2" : "hidden sm:grid sm:grid-cols-2")}>
                       <InfoPill label="Expected seats" value={String(request.expectedSeats)} />
                       <InfoPill
@@ -1036,46 +1063,80 @@ export default function PlatformAdminRequestsPage() {
                 return [
                   <TableRow key={request.id}>
                     <TableCell className="px-5 py-4 align-top">
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         <p className="font-semibold text-slate-950">{request.organizationName}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            {request.organizationType ?? "Organization"}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            {request.region ?? "No region"}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 align-top">
+                      <div className="space-y-1.5">
+                        <p className="font-medium text-slate-900">{request.requestorName}</p>
+                        <p className="text-xs text-slate-500">{request.requestorEmail}</p>
+                        <p className="text-xs text-slate-500">{request.jobTitle ?? "Job title not provided"}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 align-top">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <StatusBadge status={request.status} />
+                          {request.accessInviteSentAt ? (
+                            <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1368ff]">
+                              Invite sent
+                            </span>
+                          ) : null}
+                        </div>
                         <p className="text-xs text-slate-500">
-                          {request.organizationType ?? "Organization"} - {request.region ?? "No region"}
+                          {request.provisionedTenantId ? `Tenant ${request.provisionedTenantId}` : "Provisioning not completed"}
                         </p>
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
-                      <div className="space-y-1">
-                        <p className="font-medium text-slate-900">{request.requestorName}</p>
-                        <p className="text-xs text-slate-500">{request.requestorEmail}</p>
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-medium text-slate-900">{request.requestedPlan}</p>
+                        <p className="text-xs text-slate-500">{request.expectedSeats} expected seats</p>
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
-                      <div className="flex flex-wrap gap-2">
-                        <StatusBadge status={request.status} />
-                        {request.accessInviteSentAt ? (
-                          <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1368ff]">
-                            Invite sent
-                          </span>
-                        ) : null}
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-medium text-slate-900">{request.expectedCoachCount ?? 0} coaches</p>
+                        <p className="text-xs text-slate-500">{request.expectedAthleteCount ?? 0} athletes</p>
                       </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 align-top text-sm text-slate-700">{request.requestedPlan}</TableCell>
-                    <TableCell className="px-5 py-4 align-top text-sm text-slate-700">
-                      {(request.expectedCoachCount ?? 0).toString()} coaches - {(request.expectedAthleteCount ?? 0).toString()} athletes
+                    <TableCell className="px-5 py-4 align-top">
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-medium text-slate-900">{formatDateLabel(request.createdAt, "Not submitted")}</p>
+                        <p className="text-xs text-slate-500">Request intake</p>
+                      </div>
                     </TableCell>
-                    <TableCell className="px-5 py-4 align-top text-sm text-slate-700">{formatDateLabel(request.createdAt, "Not submitted")}</TableCell>
-                    <TableCell className="px-5 py-4 align-top text-sm text-slate-700">
-                      {request.desiredStartDate ? new Date(request.desiredStartDate).toLocaleDateString() : "Flexible"}
+                    <TableCell className="px-5 py-4 align-top">
+                      <div className="space-y-1.5">
+                        <p className="text-sm font-medium text-slate-900">
+                          {request.desiredStartDate ? new Date(request.desiredStartDate).toLocaleDateString() : "Flexible"}
+                        </p>
+                        <p className="text-xs text-slate-500">Preferred start</p>
+                      </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-10 rounded-full border-slate-200"
-                        onClick={() => setExpandedRequestId(isExpanded ? null : request.id)}
-                      >
-                        {isExpanded ? "Collapse" : request.status === "pending" ? "Review" : "Details"}
-                      </Button>
+                      <div className="flex flex-col items-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-10 rounded-full border-slate-200"
+                          onClick={() => setExpandedRequestId(isExpanded ? null : request.id)}
+                        >
+                          {isExpanded ? "Collapse" : request.status === "pending" ? "Review" : "Details"}
+                        </Button>
+                        <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                          {isExpanded ? "Expanded" : "Closed"}
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>,
                   ...(isExpanded

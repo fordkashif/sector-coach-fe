@@ -4,6 +4,7 @@ import { ArrowDown01Icon, FilePasteIcon, FilterHorizontalIcon, TextCreationIcon 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { DataSurfaceToolbar } from "@/components/ui/data-surface-toolbar"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
 import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import {
@@ -69,6 +70,15 @@ function EventBadge({ action }: { action: PlatformAuditEventRecord["action"] }) 
         : "status-chip-success"
 
   return <span className={cn("rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]", tone)}>{label}</span>
+}
+
+function AuditMetaCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-medium text-slate-950">{value}</p>
+    </div>
+  )
 }
 
 export default function PlatformAdminAuditPage() {
@@ -210,42 +220,42 @@ export default function PlatformAdminAuditPage() {
         </section>
       ) : null}
 
-      <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:p-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3 sm:block">
-                <h2 className="text-xl font-semibold tracking-[-0.03em] text-slate-950">Audit feed</h2>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className={cn("sm:hidden", toolbarIconButtonClassName)}
-                      aria-label="Open audit actions"
-                    >
-                      <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel>Audit actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => setActionFilter("all")}>Show all events</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setActionFilter("tenant_provision_request_submitted")}>Show submitted</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setActionFilter("tenant_provision_request_reviewed")}>Show reviewed</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setActionFilter("tenant_provision_request_provisioned")}>Show provisioned</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => void handleExportCsv()}>Export CSV</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void handleExportPdf()}>Export PDF</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              <p className="max-w-[64ch] text-sm text-slate-500">Search by action, email, target, or request metadata.</p>
-              <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
-                Event: <span className="ml-1 font-medium text-slate-700">{actionFilterLabels[actionFilter]}</span>
-              </div>
+      <DataSurfaceToolbar
+        eyebrow="Audit controls"
+        title="Audit feed"
+        description="Search by action, email, target, or request metadata."
+        status={
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+            Event: <span className="ml-1 font-medium text-slate-700">{actionFilterLabels[actionFilter]}</span>
+          </div>
+        }
+        controls={
+          <>
+            <div className="flex items-center justify-between gap-3 sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className={toolbarIconButtonClassName}
+                    aria-label="Open audit actions"
+                  >
+                    <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Audit actions</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setActionFilter("all")}>Show all events</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActionFilter("tenant_provision_request_submitted")}>Show submitted</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActionFilter("tenant_provision_request_reviewed")}>Show reviewed</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActionFilter("tenant_provision_request_provisioned")}>Show provisioned</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => void handleExportCsv()}>Export CSV</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => void handleExportPdf()}>Export PDF</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-
             <div className="hidden items-center gap-2 sm:flex">
               <Tooltip>
                 <DropdownMenu>
@@ -284,7 +294,6 @@ export default function PlatformAdminAuditPage() {
                 </DropdownMenu>
                 <TooltipContent side="bottom">Filter events</TooltipContent>
               </Tooltip>
-
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -300,7 +309,6 @@ export default function PlatformAdminAuditPage() {
                 </TooltipTrigger>
                 <TooltipContent side="bottom">Export CSV</TooltipContent>
               </Tooltip>
-
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -317,18 +325,17 @@ export default function PlatformAdminAuditPage() {
                 <TooltipContent side="bottom">Export PDF</TooltipContent>
               </Tooltip>
             </div>
-          </div>
-
-          <div className="pt-1">
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search audit trail"
-              className="h-12 rounded-full border-slate-200 bg-slate-50 px-5 text-base lg:max-w-2xl"
-            />
-          </div>
-        </div>
-      </section>
+          </>
+        }
+        search={
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search audit trail"
+            className="h-12 rounded-full border-slate-200 bg-slate-50 px-5 text-base lg:max-w-2xl"
+          />
+        }
+      />
 
       {loading ? (
         <section className="rounded-[28px] border border-slate-200 bg-white px-5 py-8 text-sm text-slate-500 shadow-sm">
@@ -395,18 +402,9 @@ export default function PlatformAdminAuditPage() {
                     </div>
 
                     <div className={cn("grid gap-3 xl:grid-cols-3", isExpanded ? "grid-cols-1 sm:grid-cols-2" : "hidden sm:grid sm:grid-cols-2")}>
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Action</p>
-                        <p className="mt-1 text-sm font-medium text-slate-950">{formatActionLabel(event.action)}</p>
-                      </div>
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Actor</p>
-                        <p className="mt-1 text-sm font-medium text-slate-950">{event.actorEmail ?? "System actor"}</p>
-                      </div>
-                      <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Occurred</p>
-                        <p className="mt-1 text-sm font-medium text-slate-950">{formatDateLabel(event.occurredAt)}</p>
-                      </div>
+                      <AuditMetaCard label="Action" value={formatActionLabel(event.action)} />
+                      <AuditMetaCard label="Actor" value={event.actorEmail ?? "System actor"} />
+                      <AuditMetaCard label="Occurred" value={formatDateLabel(event.occurredAt)} />
                     </div>
 
                     {isExpanded && event.detail ? (
@@ -437,6 +435,11 @@ export default function PlatformAdminAuditPage() {
                     </p>
                     {!isExpanded ? (
                       <div className="mt-3 space-y-3">
+                        <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Summary</p>
+                          <p className="mt-1 text-sm font-medium text-slate-950">{formatActionLabel(event.action)}</p>
+                          <p className="mt-1 text-xs leading-5 text-slate-500">{event.actorRole} actor on {event.target}</p>
+                        </div>
                         <p className="text-sm leading-6 text-slate-600">
                           {event.detail ?? (metadataItems.length > 0 ? `${metadataItems.length} metadata fields available.` : "Open this event to inspect its details.")}
                         </p>
