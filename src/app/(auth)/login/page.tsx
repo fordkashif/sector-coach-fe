@@ -408,7 +408,7 @@ export default function LoginPage() {
           <section className="flex min-h-[160px] flex-col justify-between px-6 pb-5 pt-8 sm:min-h-[176px] sm:px-8 sm:pb-6 md:pb-8 xl:min-h-screen xl:px-6 xl:pb-14 xl:pt-12 2xl:px-10">
             <div className="space-y-6 md:space-y-8 xl:max-w-[620px] xl:space-y-10">
               <div className="space-y-4">
-                <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(31,140,255,0.25)]">
+                <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-[0_12px_40px_rgba(31,140,255,0.25)]">
                   <img src="/app-icon.png" alt="SKTR Coach" className="h-full w-full object-cover" />
                 </div>
                 <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#6fb6ff]">SKTR Coach</p>
