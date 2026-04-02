@@ -158,7 +158,11 @@ export default function ResetPasswordPage() {
               <Button type="button" onClick={handleCopyLocalResetLink} variant="outline" className="h-10 rounded-full px-4">
                 {copyStatus === "done" ? "Copied" : "Copy link"}
               </Button>
-              <Button asChild type="button" className="h-10 rounded-full px-4">
+              <Button
+                asChild
+                type="button"
+                className="h-10 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#2f80ff_100%)] px-4 text-white shadow-[0_12px_36px_rgba(28,101,255,0.24)] hover:opacity-95"
+              >
                 <Link to={localResetLink ?? "/reset-password"}>Open link</Link>
               </Button>
             </div>
@@ -195,7 +199,11 @@ export default function ResetPasswordPage() {
               />
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={loading} className="h-11 rounded-full px-5">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#2f80ff_100%)] px-5 text-white shadow-[0_12px_36px_rgba(28,101,255,0.24)] hover:opacity-95"
+              >
                 {loading ? "Saving..." : "Update password"}
               </Button>
               <Button asChild type="button" variant="outline" className="h-11 rounded-full px-5">
@@ -218,7 +226,11 @@ export default function ResetPasswordPage() {
               />
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={loading} className="h-11 rounded-full px-5">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#2f80ff_100%)] px-5 text-white shadow-[0_12px_36px_rgba(28,101,255,0.24)] hover:opacity-95"
+              >
                 {loading ? "Sending..." : "Send reset link"}
               </Button>
               <Button asChild type="button" variant="outline" className="h-11 rounded-full px-5">

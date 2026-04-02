@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Textarea } from "@/components/ui/textarea"
 import { setSessionCookies } from "@/lib/auth-session"
 import { getPackageById, getRecommendedPackage, packageOptions, type PackageId } from "@/lib/billing/package-catalog"
 import { getCoachTeamsSnapshotForCurrentUser } from "@/lib/data/coach/teams-data"
@@ -46,7 +46,6 @@ type RequestFormState = {
   expectedCoachCount: string
   expectedAthleteCount: string
   desiredStartDate: string
-  notes: string
 }
 
 type RequestField =
@@ -61,7 +60,6 @@ type RequestField =
   | "expectedCoachCount"
   | "expectedAthleteCount"
   | "desiredStartDate"
-  | "notes"
 
 const organizationTypeOptions = [
   { value: "school", label: "School" },
@@ -83,7 +81,6 @@ const emptyRequestForm: RequestFormState = {
   expectedCoachCount: "",
   expectedAthleteCount: "",
   desiredStartDate: "",
-  notes: "",
 }
 
 const MOCK_ROLE_STORAGE_KEY = "pacelab:mock-role"
@@ -402,7 +399,7 @@ export default function LoginPage() {
         p_requestor_name: requestForm.fullName.trim(),
         p_requestor_email: normalizedEmail,
         p_organization_name: requestForm.organization.trim(),
-        p_notes: requestForm.notes.trim() || null,
+        p_notes: null,
         p_requested_plan: requestForm.requestedPlan.trim(),
         p_expected_seats: Math.max(0, coachCount) + Math.max(0, athleteCount),
         p_job_title: requestForm.jobTitle.trim(),
@@ -440,7 +437,7 @@ export default function LoginPage() {
       expectedCoachCount: Math.max(0, coachCount),
       expectedAthleteCount: Math.max(0, athleteCount),
       desiredStartDate: requestForm.desiredStartDate,
-      notes: requestForm.notes,
+      notes: "",
     })
 
     const existingRequests = loadAccountRequests()
@@ -450,7 +447,6 @@ export default function LoginPage() {
       email: requestForm.email.trim().toLowerCase(),
       organization: requestForm.organization.trim(),
       role: "club-admin",
-      notes: requestForm.notes.trim() || undefined,
       status: "pending",
       createdAt: new Date().toISOString(),
     }
@@ -803,12 +799,12 @@ export default function LoginPage() {
                             setRequestErrors((previous) => ({ ...previous, organizationType: undefined }))
                           }}
                         >
-                          <SelectTrigger
-                            id="request-organization-type"
-                            aria-invalid={requestErrors.organizationType ? "true" : "false"}
-                            className="h-14 w-full rounded-full border-slate-200 bg-white px-5 text-base shadow-none focus:ring-[#1368ff]/20"
-                            aria-label="Organization type"
-                          >
+                              <SelectTrigger
+                                id="request-organization-type"
+                                aria-invalid={requestErrors.organizationType ? "true" : "false"}
+                                className="!h-14 w-full rounded-full border-slate-200 bg-white px-5 py-0 text-base shadow-none focus:ring-[#1368ff]/20 [&>span]:leading-none"
+                                aria-label="Organization type"
+                              >
                             <SelectValue placeholder="Select organization type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -841,36 +837,49 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2.5">
-                      <Label htmlFor="request-package" className="text-sm font-medium text-slate-700">
+                      <Label className="text-sm font-medium text-slate-700">
                         Package <span className="text-red-500">*</span>
                       </Label>
-                      <Select
+                      <RadioGroup
                         value={requestForm.requestedPlan}
                         onValueChange={(value) => {
                           setRequestForm((previous) => ({ ...previous, requestedPlan: value }))
                           setRequestErrors((previous) => ({ ...previous, requestedPlan: undefined }))
                         }}
+                        className="space-y-3"
+                        aria-invalid={requestErrors.requestedPlan ? "true" : "false"}
                       >
-                        <SelectTrigger
-                          id="request-package"
-                          aria-invalid={requestErrors.requestedPlan ? "true" : "false"}
-                          className="h-14 w-full rounded-full border-slate-200 bg-white px-5 text-base shadow-none focus:ring-[#1368ff]/20"
-                          aria-label="Package"
-                        >
-                          <SelectValue placeholder="Select package" />
-                        </SelectTrigger>
-                          <SelectContent>
-                            {packageOptions.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                      </Select>
-                      <p className="text-sm leading-6 text-slate-500">
-                        {getPackageById(requestForm.requestedPlan)?.description ??
-                          "Choose the package that best matches your rollout scope."}
-                      </p>
+                        {packageOptions.map((option) => {
+                          const isSelected = requestForm.requestedPlan === option.id
+                          const coachesLabel = Number.isFinite(option.limits.coaches) ? `${option.limits.coaches} coaches` : "Custom coaches"
+                          const athletesLabel = Number.isFinite(option.limits.athletes) ? `${option.limits.athletes} athletes` : "Custom athletes"
+
+                          return (
+                            <label
+                              key={option.id}
+                              htmlFor={`request-package-${option.id}`}
+                              className={`flex cursor-pointer items-start justify-between gap-4 rounded-[24px] border px-5 py-4 transition ${
+                                isSelected
+                                  ? "border-[#1368ff] bg-[#eef5ff] shadow-[0_10px_28px_rgba(19,104,255,0.12)]"
+                                  : "border-slate-200 bg-white hover:border-slate-300"
+                              }`}
+                            >
+                              <div className="space-y-1.5">
+                                <div className="text-[1.05rem] font-semibold text-slate-950">{option.label}</div>
+                                <p className="text-sm leading-6 text-slate-500">{option.description}</p>
+                                <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
+                                  {coachesLabel} · {athletesLabel}
+                                </p>
+                              </div>
+                              <RadioGroupItem
+                                id={`request-package-${option.id}`}
+                                value={option.id}
+                                className="mt-1 border-slate-300 text-slate-950"
+                              />
+                            </label>
+                          )
+                        })}
+                      </RadioGroup>
                       {requestErrors.requestedPlan ? <p className="text-sm text-red-600">{requestErrors.requestedPlan}</p> : null}
                     </div>
 
@@ -960,20 +969,6 @@ export default function LoginPage() {
                         </ul>
                       </div>
                     ) : null}
-
-                    <div className="space-y-2.5">
-                      <Label htmlFor="request-notes" className="text-sm font-medium text-slate-700">
-                        Notes
-                      </Label>
-                      <Textarea
-                        id="request-notes"
-                        rows={4}
-                        value={requestForm.notes}
-                        onChange={(event) => setRequestForm((previous) => ({ ...previous, notes: event.target.value }))}
-                        placeholder="Tell us which club, team, or access context this request belongs to."
-                        className="rounded-[24px] border-slate-200 bg-white px-5 py-4 text-base shadow-none placeholder:text-slate-400"
-                      />
-                    </div>
 
                     <Button
                       type="submit"
