@@ -243,7 +243,7 @@ export default function ClubAdminClaimPage() {
       loadingCopy="Claiming account..."
       submitLabel="Claim account and continue"
       title="Claim your club-admin account"
-      intro="This is the first-access claim flow for your approved organization request. Set your password and complete the minimum club setup before entering the PaceLab workspace."
+      intro="This is the first-access claim flow for your approved organization request. Set your password and complete the minimum club setup before entering the SKTR Coach workspace."
       onPasswordChange={setPassword}
       onConfirmPasswordChange={setConfirmPassword}
       onProfileChange={setProfile}

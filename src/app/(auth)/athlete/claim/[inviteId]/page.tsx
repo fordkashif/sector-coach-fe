@@ -339,7 +339,7 @@ export default function AthleteClaimPage() {
             {stage === "needs-auth" ? (
               <div className="space-y-3">
                 <p className="text-sm text-slate-500">
-                  PaceLab found an existing athlete account for this invited email. Sign in with that account and the invite will attach automatically.
+                  SKTR Coach found an existing athlete account for this invited email. Sign in with that account and the invite will attach automatically.
                 </p>
                 <Button asChild className="h-11 rounded-full px-5">
                   <Link to={`/login?redirect=${encodeURIComponent(`/athlete/claim/${inviteId}`)}`}>Sign in to continue</Link>
@@ -406,7 +406,7 @@ export default function AthleteClaimPage() {
           ) : (
             <div className="mt-4 space-y-3 text-sm text-slate-600">
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="font-medium text-slate-950">1. PaceLab checks the invited email first</p>
+                <p className="font-medium text-slate-950">1. SKTR Coach checks the invited email first</p>
                 <p className="mt-1">If the email already has an athlete account, the invite goes straight to sign-in. If not, the invite goes straight to first-time setup.</p>
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">

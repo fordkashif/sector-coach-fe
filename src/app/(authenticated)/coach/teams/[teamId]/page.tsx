@@ -69,7 +69,7 @@ export default function CoachTeamDetailPage() {
     return (
       <InvalidEntityPage
         title="Team not found"
-        description="The requested team does not exist in the current PaceLab workspace."
+        description="The requested team does not exist in the current SKTR Coach workspace."
         backTo="/coach/teams"
       />
     )

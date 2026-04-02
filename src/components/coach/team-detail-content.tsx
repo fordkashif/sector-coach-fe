@@ -434,7 +434,7 @@ export function CoachTeamDetailContent({ teamId, data }: CoachTeamDetailContentP
                     <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Invite flow</p>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
-                        PaceLab checks whether this athlete email already exists and routes sign-in or first-time setup automatically.
+                        SKTR Coach checks whether this athlete email already exists and routes sign-in or first-time setup automatically.
                       </p>
                     </div>
                     <div className="space-y-2">

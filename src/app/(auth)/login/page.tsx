@@ -409,9 +409,9 @@ export default function LoginPage() {
             <div className="space-y-6 md:space-y-8 xl:max-w-[620px] xl:space-y-10">
               <div className="space-y-4">
                 <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(31,140,255,0.25)]">
-                  <img src="/app-icon.png" alt="PaceLab" className="h-full w-full object-cover" />
+                  <img src="/app-icon.png" alt="SKTR Coach" className="h-full w-full object-cover" />
                 </div>
-                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#6fb6ff]">PaceLab</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#6fb6ff]">SKTR Coach</p>
               </div>
 
               <div className="space-y-3 lg:space-y-4">

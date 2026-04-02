@@ -10,13 +10,13 @@ export function NotFoundPage() {
         <div className="grid w-full gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-center">
           <div className="rounded-[32px] border border-white/10 bg-[#091223]/90 p-6 text-white shadow-[0_28px_80px_rgba(2,6,23,0.35)] backdrop-blur">
             <div className="inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <img src="/app-icon.png" alt="PaceLab" className="h-8 w-8 rounded-xl object-cover" />
-              <span className="text-sm font-semibold tracking-[0.18em] uppercase">PaceLab</span>
+              <img src="/app-icon.png" alt="SKTR Coach" className="h-8 w-8 rounded-xl object-cover" />
+              <span className="text-sm font-semibold tracking-[0.18em] uppercase">SKTR Coach</span>
             </div>
             <p className="mt-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#7ea6ff]">Route issue</p>
             <h1 className="mt-3 text-[3rem] font-semibold leading-[0.9] tracking-[-0.07em]">404</h1>
             <p className="mt-4 text-sm leading-7 text-slate-300">
-              This route is not available in the current PaceLab app state. On deployed mobile browsers this usually means the app was reopened on a deep link without an SPA rewrite.
+              This route is not available in the current SKTR Coach app state. On deployed mobile browsers this usually means the app was reopened on a deep link without an SPA rewrite.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white hover:opacity-95">
@@ -40,7 +40,7 @@ export function NotFoundPage() {
               The page you opened is not currently reachable.
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-8 text-slate-600">
-              The app session may still be valid. If you were returning from a paused mobile tab, use the login route or home route to let PaceLab restore your workspace cleanly.
+              The app session may still be valid. If you were returning from a paused mobile tab, use the login route or home route to let SKTR Coach restore your workspace cleanly.
             </p>
 
             <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -58,7 +58,7 @@ export function NotFoundPage() {
                 <div className="mt-3 space-y-3 text-sm text-slate-600">
                   <div className="flex items-start gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
                     <HugeiconsIcon icon={ArrowLeft01Icon} className="mt-0.5 size-4 text-[#1f5fd1]" />
-                    <span>Use <span className="font-medium text-slate-950">Login</span> or <span className="font-medium text-slate-950">Home</span>. If your Supabase session still exists, PaceLab will restore access without a fresh sign-in.</span>
+                    <span>Use <span className="font-medium text-slate-950">Login</span> or <span className="font-medium text-slate-950">Home</span>. If your Supabase session still exists, SKTR Coach will restore access without a fresh sign-in.</span>
                   </div>
                 </div>
               </div>

@@ -660,7 +660,7 @@ export default function ClubAdminTeamsPage() {
           <DialogHeader>
             <DialogTitle>Generate athlete invite</DialogTitle>
             <DialogDescription>
-              Athlete invites are email-addressed so PaceLab can decide whether to sign in or create the athlete account automatically.
+              Athlete invites are email-addressed so SKTR Coach can decide whether to sign in or create the athlete account automatically.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">

@@ -62,7 +62,7 @@ export default function NotificationSettingsPage() {
       {
         channel: "in-app" as const,
         title: "In-app notifications",
-        body: "Unread items in the PaceLab notification drawer.",
+        body: "Unread items in the SKTR Coach notification drawer.",
       },
       {
         channel: "email" as const,
@@ -132,7 +132,7 @@ export default function NotificationSettingsPage() {
           Notification controls that actually govern delivery.
         </h1>
         <p className="mt-3 max-w-[56ch] text-sm leading-7 text-white/72 sm:text-base">
-          These toggles control whether PaceLab should project in-app notifications for you and whether queued email notifications should be dispatched to your inbox.
+          These toggles control whether SKTR Coach should project in-app notifications for you and whether queued email notifications should be dispatched to your inbox.
         </p>
       </section>
 
