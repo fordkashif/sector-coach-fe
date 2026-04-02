@@ -35,7 +35,8 @@ type DemoAccountKey = keyof DemoCredentialMap
 type AuthMode = "signin" | "request"
 
 type RequestFormState = {
-  fullName: string
+  firstName: string
+  lastName: string
   email: string
   jobTitle: string
   organization: string
@@ -49,7 +50,8 @@ type RequestFormState = {
 }
 
 type RequestField =
-  | "fullName"
+  | "firstName"
+  | "lastName"
   | "email"
   | "jobTitle"
   | "organization"
@@ -70,7 +72,8 @@ const organizationTypeOptions = [
 ] as const
 
 const emptyRequestForm: RequestFormState = {
-  fullName: "",
+  firstName: "",
+  lastName: "",
   email: "",
   jobTitle: "",
   organization: "",
@@ -350,8 +353,10 @@ export default function LoginPage() {
     const normalizedWebsite = requestForm.organizationWebsite.trim()
     const coachCount = Number.parseInt(requestForm.expectedCoachCount || "0", 10)
     const athleteCount = Number.parseInt(requestForm.expectedAthleteCount || "0", 10)
+    const requestorName = `${requestForm.firstName.trim()} ${requestForm.lastName.trim()}`.trim()
 
-    if (!requestForm.fullName.trim()) nextErrors.fullName = "Full name is required."
+    if (!requestForm.firstName.trim()) nextErrors.firstName = "First name is required."
+    if (!requestForm.lastName.trim()) nextErrors.lastName = "Last name is required."
     if (!normalizedEmail) {
       nextErrors.email = "Work email is required."
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
@@ -396,7 +401,7 @@ export default function LoginPage() {
       }
 
       const result = await supabase.rpc("submit_tenant_provision_request", {
-        p_requestor_name: requestForm.fullName.trim(),
+        p_requestor_name: requestorName,
         p_requestor_email: normalizedEmail,
         p_organization_name: requestForm.organization.trim(),
         p_notes: null,
@@ -426,7 +431,7 @@ export default function LoginPage() {
     }
 
     submitMockTenantProvisionRequest({
-      fullName: requestForm.fullName,
+      fullName: requestorName,
       email: requestForm.email,
       jobTitle: requestForm.jobTitle,
       organization: requestForm.organization,
@@ -443,7 +448,7 @@ export default function LoginPage() {
     const existingRequests = loadAccountRequests()
     const nextRequest: AccountRequest = {
       id: `request-${Date.now()}`,
-      fullName: requestForm.fullName.trim(),
+      fullName: requestorName,
       email: requestForm.email.trim().toLowerCase(),
       organization: requestForm.organization.trim(),
       role: "club-admin",
@@ -695,7 +700,7 @@ export default function LoginPage() {
                     ) : null}
                   </>
                 ) : requestSubmitted ? (
-                  <div className="space-y-4 rounded-[28px] border border-[#cfe2ff] bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_100%)] px-5 py-5 text-slate-950 shadow-[0_12px_28px_rgba(31,140,255,0.12)]">
+                  <div className="space-y-4 px-1 py-1 text-slate-950">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#1f8cff]">Request received</p>
                     <h2 className="text-2xl font-semibold tracking-[-0.04em]">We have your access request.</h2>
                     <p className="text-sm leading-6 text-slate-600">
@@ -714,22 +719,41 @@ export default function LoginPage() {
                   </div>
                 ) : (
                   <form className="space-y-5" onSubmit={handleRequestSubmit}>
-                    <div className="space-y-2.5">
-                      <Label htmlFor="request-full-name" className="text-sm font-medium text-slate-700">
-                        Full name <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="request-full-name"
-                        value={requestForm.fullName}
-                        aria-invalid={requestErrors.fullName ? "true" : "false"}
-                        onChange={(event) => {
-                          setRequestForm((previous) => ({ ...previous, fullName: event.target.value }))
-                          setRequestErrors((previous) => ({ ...previous, fullName: undefined }))
-                        }}
-                        placeholder="Jordan Davis"
-                        className="h-14 rounded-full border-slate-200 bg-white px-5 text-base shadow-none placeholder:text-slate-400"
-                      />
-                      {requestErrors.fullName ? <p className="text-sm text-red-600">{requestErrors.fullName}</p> : null}
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <div className="space-y-2.5">
+                        <Label htmlFor="request-first-name" className="text-sm font-medium text-slate-700">
+                          First name <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="request-first-name"
+                          value={requestForm.firstName}
+                          aria-invalid={requestErrors.firstName ? "true" : "false"}
+                          onChange={(event) => {
+                            setRequestForm((previous) => ({ ...previous, firstName: event.target.value }))
+                            setRequestErrors((previous) => ({ ...previous, firstName: undefined }))
+                          }}
+                          placeholder="Jordan"
+                          className="h-14 rounded-full border-slate-200 bg-white px-5 text-base shadow-none placeholder:text-slate-400"
+                        />
+                        {requestErrors.firstName ? <p className="text-sm text-red-600">{requestErrors.firstName}</p> : null}
+                      </div>
+                      <div className="space-y-2.5">
+                        <Label htmlFor="request-last-name" className="text-sm font-medium text-slate-700">
+                          Last name <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="request-last-name"
+                          value={requestForm.lastName}
+                          aria-invalid={requestErrors.lastName ? "true" : "false"}
+                          onChange={(event) => {
+                            setRequestForm((previous) => ({ ...previous, lastName: event.target.value }))
+                            setRequestErrors((previous) => ({ ...previous, lastName: undefined }))
+                          }}
+                          placeholder="Davis"
+                          className="h-14 rounded-full border-slate-200 bg-white px-5 text-base shadow-none placeholder:text-slate-400"
+                        />
+                        {requestErrors.lastName ? <p className="text-sm text-red-600">{requestErrors.lastName}</p> : null}
+                      </div>
                     </div>
 
                     <div className="space-y-2.5">

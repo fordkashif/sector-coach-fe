@@ -155,7 +155,12 @@ export default function ResetPasswordPage() {
               {absoluteLocalResetLink}
             </div>
             <div className="mt-3 flex flex-wrap gap-3">
-              <Button type="button" onClick={handleCopyLocalResetLink} variant="outline" className="h-10 rounded-full px-4">
+              <Button
+                type="button"
+                onClick={handleCopyLocalResetLink}
+                variant="outline"
+                className="h-10 rounded-full border-slate-200 bg-white px-4 text-slate-950 hover:border-[#1368ff] hover:bg-[#eef5ff] hover:text-slate-950"
+              >
                 {copyStatus === "done" ? "Copied" : "Copy link"}
               </Button>
               <Button
@@ -206,7 +211,12 @@ export default function ResetPasswordPage() {
               >
                 {loading ? "Saving..." : "Update password"}
               </Button>
-              <Button asChild type="button" variant="outline" className="h-11 rounded-full px-5">
+              <Button
+                asChild
+                type="button"
+                variant="outline"
+                className="h-11 rounded-full border-slate-200 bg-white px-5 text-slate-950 hover:border-[#1368ff] hover:bg-[#eef5ff] hover:text-slate-950"
+              >
                 <Link to="/login">Back to login</Link>
               </Button>
             </div>
@@ -233,7 +243,12 @@ export default function ResetPasswordPage() {
               >
                 {loading ? "Sending..." : "Send reset link"}
               </Button>
-              <Button asChild type="button" variant="outline" className="h-11 rounded-full px-5">
+              <Button
+                asChild
+                type="button"
+                variant="outline"
+                className="h-11 rounded-full border-slate-200 bg-white px-5 text-slate-950 hover:border-[#1368ff] hover:bg-[#eef5ff] hover:text-slate-950"
+              >
                 <Link to="/login">Back to login</Link>
               </Button>
             </div>
