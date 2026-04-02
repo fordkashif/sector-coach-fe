@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { getBackendMode, isSupabaseEnabled } from "@/lib/supabase/config"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 import { resolveSessionActor, type AppRole } from "@/lib/supabase/actor"
+import { SESSION_UPDATED_EVENT } from "@/lib/auth-session"
 import { MOCK_ROLE_STORAGE_KEY, MOCK_USER_EMAIL_STORAGE_KEY } from "@/lib/mock-auth"
 
 interface RoleContextValue {
@@ -25,6 +26,7 @@ const RoleContext = createContext<RoleContextValue>({
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole>("club-admin")
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [, setSessionEpoch] = useState(0)
 
   useEffect(() => {
     if (getBackendMode() !== "supabase") {
@@ -78,14 +80,36 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
     void syncFromSession()
 
+    const handleWindowFocus = () => {
+      void syncFromSession()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncFromSession()
+      }
+    }
+
+    const handleSessionUpdated = () => {
+      setSessionEpoch((value) => value + 1)
+      void syncFromSession()
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
       void syncFromSession()
     })
 
+    window.addEventListener("focus", handleWindowFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated as EventListener)
+
     return () => {
       active = false
+      window.removeEventListener("focus", handleWindowFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated as EventListener)
       subscription.unsubscribe()
     }
   }, [role])

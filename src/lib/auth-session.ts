@@ -3,6 +3,13 @@ export const ROLE_COOKIE = "pacelab_role"
 export const TENANT_COOKIE = "pacelab_tenant"
 export const USER_COOKIE = "pacelab_user"
 export const COACH_TEAM_COOKIE = "pacelab_coach_team"
+export const SESSION_UPDATED_EVENT = "pacelab:session-cookies-updated"
+
+function notifySessionUpdated() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SESSION_UPDATED_EVENT))
+  }
+}
 
 export function setSessionCookies(
   role: "athlete" | "coach" | "club-admin" | "platform-admin",
@@ -20,6 +27,7 @@ export function setSessionCookies(
   } else {
     document.cookie = `${COACH_TEAM_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
   }
+  notifySessionUpdated()
 }
 
 export function setCoachTeamCookie(coachTeamId?: string) {
@@ -29,6 +37,7 @@ export function setCoachTeamCookie(coachTeamId?: string) {
   } else {
     document.cookie = `${COACH_TEAM_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
   }
+  notifySessionUpdated()
 }
 
 export function clearSessionCookies() {
@@ -37,6 +46,7 @@ export function clearSessionCookies() {
   document.cookie = `${TENANT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
   document.cookie = `${USER_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
   document.cookie = `${COACH_TEAM_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
+  notifySessionUpdated()
 }
 
 export function getCookieValue(name: string) {

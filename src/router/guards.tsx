@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Navigate, Outlet, useLocation } from "react-router-dom"
 import { evaluateAccess, type AccessResult } from "@/lib/access-control"
+import { SESSION_UPDATED_EVENT } from "@/lib/auth-session"
 import { getCurrentGuardAuthContext } from "@/router/guard-auth-context"
 
 export function GuardedAuthenticatedLayout() {
@@ -21,8 +22,30 @@ export function GuardedAuthenticatedLayout() {
     }
 
     void resolveAccess()
+
+    const handleWindowFocus = () => {
+      void resolveAccess()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void resolveAccess()
+      }
+    }
+
+    const handleSessionUpdated = () => {
+      void resolveAccess()
+    }
+
+    window.addEventListener("focus", handleWindowFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated as EventListener)
+
     return () => {
       cancelled = true
+      window.removeEventListener("focus", handleWindowFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener(SESSION_UPDATED_EVENT, handleSessionUpdated as EventListener)
     }
   }, [location.pathname])
 

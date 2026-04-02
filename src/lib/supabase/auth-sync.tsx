@@ -70,14 +70,29 @@ export function SupabaseAuthSync() {
 
     void syncSession()
 
+    const handleWindowFocus = () => {
+      void syncSession()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncSession()
+      }
+    }
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
       void syncSession()
     })
 
+    window.addEventListener("focus", handleWindowFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
     return () => {
       active = false
+      window.removeEventListener("focus", handleWindowFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
       subscription.unsubscribe()
     }
   }, [])
