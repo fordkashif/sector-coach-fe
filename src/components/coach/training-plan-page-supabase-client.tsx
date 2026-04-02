@@ -926,16 +926,9 @@ export default function CoachTrainingPlanPageSupabaseClient({ initialRole, initi
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Team</Label>
-                  <Select value={teamId} onValueChange={setTeamId} disabled={Boolean(scopedTeamId)}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map((team) => (
-                        <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex h-11 items-center rounded-[16px] border border-slate-200 bg-white px-4 text-sm font-medium text-slate-950">
+                    {effectiveTeam?.name ?? "Assigned team"}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Visibility start</Label>
