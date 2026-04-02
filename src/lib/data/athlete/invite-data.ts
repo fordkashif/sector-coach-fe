@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { err, mapPostgrestError, ok, type DataError, type Result } from "@/lib/data/result"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 import { getBackendMode } from "@/lib/supabase/config"
+import { buildPackageLimitError, getTenantPackageUsage } from "@/lib/tenant/package-enforcement"
 
 type ClientResolution =
   | { ok: true; client: SupabaseClient }
@@ -62,6 +63,18 @@ export async function createAthleteInviteForCurrentCoach(params: {
   if (!profile) return err("NOT_FOUND", "No profile found for current user.")
   if (profile.role !== "coach" && profile.role !== "club-admin") {
     return err("FORBIDDEN", "Only coach or club-admin users can create athlete invites.")
+  }
+
+  const packageUsageResult = await getTenantPackageUsage(clientResult.client, profile.tenant_id as string)
+  if (!packageUsageResult.ok) return packageUsageResult
+  if (
+    packageUsageResult.data.packageDefinition &&
+    packageUsageResult.data.usage.athletes >= packageUsageResult.data.packageDefinition.limits.athletes
+  ) {
+    return buildPackageLimitError({
+      packageDefinition: packageUsageResult.data.packageDefinition,
+      resourceLabel: "athletes",
+    })
   }
 
   const { data, error } = await clientResult.client

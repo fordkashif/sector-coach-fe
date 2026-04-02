@@ -33,13 +33,18 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import {
   approveAndProvisionTenantRequest,
   dispatchPendingNotificationEmails,
+  getPlatformAdminPackageUpgradeRequests,
   getPlatformAdminRequestQueue,
   logPlatformAdminExport,
   previewInitialClubAdminAccessInvite,
+  reviewTenantPackageUpgradeRequest,
   reviewTenantProvisionRequest,
   sendInitialClubAdminAccessInvite,
+  setTenantRequestLifecycleState,
+  type PlatformAdminPackageUpgradeRequestRecord,
   type PlatformAdminRequestRecord,
 } from "@/lib/data/platform-admin/ops-data"
+import { getPackageById } from "@/lib/billing/package-catalog"
 import { cn } from "@/lib/utils"
 
 function formatDateLabel(value: string | null, emptyLabel = "Not reviewed") {
@@ -63,6 +68,25 @@ const statusFilterLabels: Record<PlatformAdminRequestRecord["status"] | "all", s
   pending: "Pending",
   approved: "Approved",
   rejected: "Rejected",
+  cancelled: "Cancelled",
+}
+
+const lifecycleLabels: Record<NonNullable<PlatformAdminRequestRecord["lifecycleStatus"]>, string> = {
+  pending_review: "Pending review",
+  approved_pending_billing: "Billing pending",
+  billing_failed: "Billing failed",
+  active_onboarding: "Onboarding",
+  active: "Active",
+  suspended: "Suspended",
+  cancelled: "Cancelled",
+}
+
+const billingLabels: Record<NonNullable<PlatformAdminRequestRecord["billingStatus"]>, string> = {
+  pending: "Pending",
+  mocked_complete: "Mocked complete",
+  failed: "Failed",
+  active: "Active",
+  past_due: "Past due",
   cancelled: "Cancelled",
 }
 
@@ -94,6 +118,59 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   )
 }
 
+function LifecycleBadge({ lifecycleStatus }: { lifecycleStatus: PlatformAdminRequestRecord["lifecycleStatus"] }) {
+  if (!lifecycleStatus) {
+    return (
+      <span className="status-chip-neutral rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]">
+        Lifecycle unknown
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={cn(
+        "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
+        lifecycleStatus === "pending_review" && "status-chip-warning",
+        lifecycleStatus === "approved_pending_billing" && "status-chip-info",
+        lifecycleStatus === "billing_failed" && "status-chip-danger",
+        lifecycleStatus === "active_onboarding" && "status-chip-info",
+        lifecycleStatus === "active" && "status-chip-success",
+        lifecycleStatus === "suspended" && "status-chip-danger",
+        lifecycleStatus === "cancelled" && "status-chip-neutral",
+      )}
+    >
+      {lifecycleLabels[lifecycleStatus]}
+    </span>
+  )
+}
+
+function BillingBadge({ billingStatus }: { billingStatus: PlatformAdminRequestRecord["billingStatus"] }) {
+  if (!billingStatus) {
+    return (
+      <span className="status-chip-neutral rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]">
+        Billing unknown
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className={cn(
+        "rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]",
+        billingStatus === "pending" && "status-chip-warning",
+        billingStatus === "mocked_complete" && "status-chip-info",
+        billingStatus === "failed" && "status-chip-danger",
+        billingStatus === "active" && "status-chip-success",
+        billingStatus === "past_due" && "status-chip-warning",
+        billingStatus === "cancelled" && "status-chip-neutral",
+      )}
+    >
+      {billingLabels[billingStatus]}
+    </span>
+  )
+}
+
 function RequestMetaCard({
   label,
   value,
@@ -114,6 +191,7 @@ function RequestMetaCard({
 
 export default function PlatformAdminRequestsPage() {
   const [requests, setRequests] = useState<PlatformAdminRequestRecord[]>([])
+  const [upgradeRequests, setUpgradeRequests] = useState<PlatformAdminPackageUpgradeRequestRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
@@ -147,17 +225,27 @@ export default function PlatformAdminRequestsPage() {
 
     const loadQueue = async () => {
       setLoading(true)
-      const result = await getPlatformAdminRequestQueue()
+      const [requestResult, upgradeResult] = await Promise.all([
+        getPlatformAdminRequestQueue(),
+        getPlatformAdminPackageUpgradeRequests(),
+      ])
       if (cancelled) return
 
-      if (!result.ok) {
-        setError(result.error.message)
+      if (!requestResult.ok) {
+        setError(requestResult.error.message)
+        setInfo(null)
+        setLoading(false)
+        return
+      }
+      if (!upgradeResult.ok) {
+        setError(upgradeResult.error.message)
         setInfo(null)
         setLoading(false)
         return
       }
 
-      setRequests(result.data)
+      setRequests(requestResult.data)
+      setUpgradeRequests(upgradeResult.data)
       setError(null)
       setInfo(null)
       setLoading(false)
@@ -171,17 +259,21 @@ export default function PlatformAdminRequestsPage() {
 
   const summary = useMemo(() => {
     const pending = requests.filter((item) => item.status === "pending").length
-    const approved = requests.filter((item) => item.status === "approved").length
-    const provisioned = requests.filter((item) => Boolean(item.provisionedTenantId)).length
-    const inviteReady = requests.filter((item) => Boolean(item.accessInviteSentAt)).length
-    return { pending, approved, provisioned, inviteReady }
+    const billingPending = requests.filter((item) => item.lifecycleStatus === "approved_pending_billing").length
+    const onboarding = requests.filter((item) => item.lifecycleStatus === "active_onboarding").length
+    const active = requests.filter((item) => item.lifecycleStatus === "active").length
+    return { pending, billingPending, onboarding, active }
   }, [requests])
   const headerStats = [
     { label: "Pending", value: summary.pending },
-    { label: "Approved", value: summary.approved },
-    { label: "Provisioned", value: summary.provisioned },
-    { label: "Invite sent", value: summary.inviteReady },
+    { label: "Billing pending", value: summary.billingPending },
+    { label: "Onboarding", value: summary.onboarding },
+    { label: "Active", value: summary.active },
   ]
+  const pendingUpgradeRequests = useMemo(
+    () => upgradeRequests.filter((item) => item.status === "pending"),
+    [upgradeRequests],
+  )
 
   const filteredRequests = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -199,6 +291,8 @@ export default function PlatformAdminRequestsPage() {
         item.organizationWebsite ?? "",
         item.region ?? "",
         item.requestedPlan,
+        item.lifecycleStatus ?? "",
+        item.billingStatus ?? "",
         item.expectedCoachCount?.toString() ?? "",
         item.expectedAthleteCount?.toString() ?? "",
         item.desiredStartDate ?? "",
@@ -250,6 +344,8 @@ export default function PlatformAdminRequestsPage() {
             ? {
                 ...item,
                 status: "approved",
+                lifecycleStatus: "approved_pending_billing",
+                billingStatus: "pending",
                 reviewNotes: reviewNotes[requestId]?.trim() || null,
                 reviewedAt,
                 provisionedTenantId: result.data.tenantId,
@@ -268,10 +364,10 @@ export default function PlatformAdminRequestsPage() {
       setError(result.data.accessInviteError)
       setInfo(
         result.data.accessInviteError
-          ? `Tenant provisioned, but initial invite delivery still needs attention for ${target.requestorEmail}.`
+          ? `Tenant approved and provisioned for billing setup, but initial invite delivery still needs attention for ${target.requestorEmail}.`
           : result.data.accessInviteActionLink
-            ? `Tenant provisioned for ${target.requestorEmail}. Local dev generated a clickable initial access link instead of sending email.`
-            : `Tenant provisioned and initial access invite sent to ${target.requestorEmail}.`,
+            ? `Tenant approved for ${target.requestorEmail}. Local dev generated a clickable billing/setup access link instead of sending email.`
+            : `Tenant approved and initial billing/setup access invite sent to ${target.requestorEmail}.`,
       )
       setSubmittingId(null)
       return
@@ -518,6 +614,106 @@ export default function PlatformAdminRequestsPage() {
     else setInfo(`Opened print/PDF flow for ${filteredRequests.length} request row(s).`)
   }
 
+  const handleUpgradeRequestReview = async (
+    upgradeRequestId: string,
+    status: PlatformAdminPackageUpgradeRequestRecord["status"],
+  ) => {
+    if (status === "pending") return
+
+    setSubmittingId(`upgrade-${upgradeRequestId}`)
+    const result = await reviewTenantPackageUpgradeRequest({ upgradeRequestId, status })
+
+    if (!result.ok) {
+      setError(result.error.message)
+      setInfo(null)
+      setSubmittingId(null)
+      return
+    }
+
+    const reviewedAt = new Date().toISOString()
+    const target = upgradeRequests.find((item) => item.id === upgradeRequestId) ?? null
+    setUpgradeRequests((current) =>
+      current.map((item) =>
+        item.id === upgradeRequestId
+          ? {
+              ...item,
+              status,
+              reviewedAt,
+            }
+          : item,
+      ),
+    )
+
+    if (status === "approved" && target) {
+      setRequests((current) =>
+        current.map((item) =>
+          item.provisionedTenantId === target.tenantId
+            ? {
+                ...item,
+                requestedPlan: target.requestedPackage,
+              }
+            : item,
+        ),
+      )
+    }
+
+    setError(null)
+    setInfo(
+      target
+        ? `Package upgrade ${status} for ${target.organizationName}.`
+        : "Package upgrade request updated.",
+    )
+    setSubmittingId(null)
+  }
+
+  const handleLifecycleTransition = async (
+    requestId: string,
+    lifecycleStatus: PlatformAdminRequestRecord["lifecycleStatus"],
+    billingStatus?: PlatformAdminRequestRecord["billingStatus"],
+    successMessage?: string,
+  ) => {
+    if (!lifecycleStatus) return
+    const target = requests.find((item) => item.id === requestId)
+    if (!target) return
+
+    setSubmittingId(requestId)
+    const result = await setTenantRequestLifecycleState({
+      requestId,
+      lifecycleStatus,
+      billingStatus: billingStatus ?? undefined,
+      reviewNotes: reviewNotes[requestId],
+    })
+
+    if (!result.ok) {
+      setError(result.error.message)
+      setInfo(null)
+      setSubmittingId(null)
+      return
+    }
+
+    setRequests((current) =>
+      current.map((item) =>
+        item.id === requestId
+          ? {
+              ...item,
+              lifecycleStatus,
+              billingStatus: billingStatus ?? item.billingStatus,
+              billingFailedAt: lifecycleStatus === "billing_failed" ? new Date().toISOString() : item.billingFailedAt,
+              previousLifecycleStatus:
+                lifecycleStatus === "suspended" && item.lifecycleStatus !== "suspended"
+                  ? item.lifecycleStatus
+                  : item.lifecycleStatus === "suspended" && lifecycleStatus !== "suspended"
+                    ? null
+                    : item.previousLifecycleStatus,
+            }
+          : item,
+      ),
+    )
+    setError(null)
+    setInfo(successMessage ?? `${target.organizationName} moved to ${lifecycleLabels[lifecycleStatus]}.`)
+    setSubmittingId(null)
+  }
+
   const renderRequestActionPanel = (request: PlatformAdminRequestRecord, isExpanded: boolean) => {
     const isPending = request.status === "pending"
     const isSubmitting = submittingId === request.id
@@ -609,6 +805,78 @@ export default function PlatformAdminRequestsPage() {
                     Copy initial access link
                   </Button>
                 ) : null}
+                {request.lifecycleStatus === "approved_pending_billing" ? (
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="h-11 w-full rounded-full border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-700"
+                    onClick={() =>
+                      void handleLifecycleTransition(
+                        request.id,
+                        "billing_failed",
+                        "failed",
+                        `Billing marked as failed for ${request.organizationName}.`,
+                      )
+                    }
+                  >
+                    Mark billing failed
+                  </Button>
+                ) : null}
+                {request.lifecycleStatus === "billing_failed" ? (
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="h-11 w-full rounded-full border-slate-200"
+                    onClick={() =>
+                      void handleLifecycleTransition(
+                        request.id,
+                        "approved_pending_billing",
+                        "pending",
+                        `Billing reset to pending for ${request.organizationName}.`,
+                      )
+                    }
+                  >
+                    Retry billing
+                  </Button>
+                ) : null}
+                {(request.lifecycleStatus === "active_onboarding" || request.lifecycleStatus === "active") ? (
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="h-11 w-full rounded-full border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-700"
+                    onClick={() =>
+                      void handleLifecycleTransition(
+                        request.id,
+                        "suspended",
+                        request.billingStatus,
+                        `Tenant suspended for ${request.organizationName}.`,
+                      )
+                    }
+                  >
+                    Suspend tenant
+                  </Button>
+                ) : null}
+                {request.lifecycleStatus === "suspended" ? (
+                  <Button
+                    type="button"
+                    disabled={isSubmitting}
+                    variant="outline"
+                    className="h-11 w-full rounded-full border-slate-200"
+                    onClick={() =>
+                      void handleLifecycleTransition(
+                        request.id,
+                        request.previousLifecycleStatus ?? "active",
+                        request.billingStatus === "pending" ? "active" : request.billingStatus,
+                        `Tenant reactivated for ${request.organizationName}.`,
+                      )
+                    }
+                  >
+                    Reactivate tenant
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -630,6 +898,13 @@ export default function PlatformAdminRequestsPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <InfoPill label="Lifecycle" value={request.lifecycleStatus ? lifecycleLabels[request.lifecycleStatus] : "Not set"} />
+        <InfoPill label="Billing" value={request.billingStatus ? billingLabels[request.billingStatus] : "Not started"} />
+        <InfoPill label="Billing provider" value={request.billingProvider ?? "Mock billing"} />
+        <InfoPill label="Billing cycle" value={request.billingCycle ?? "Not selected"} />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <InfoPill label="Job title" value={request.jobTitle ?? "Not provided"} />
         <InfoPill label="Organization type" value={request.organizationType ?? "Not provided"} />
         <InfoPill label="Region" value={request.region ?? "Not provided"} />
@@ -638,6 +913,17 @@ export default function PlatformAdminRequestsPage() {
           value={request.desiredStartDate ? new Date(request.desiredStartDate).toLocaleDateString() : "Flexible"}
         />
       </div>
+
+      {(request.billingContactName || request.billingContactEmail || request.billingFailedAt) ? (
+        <div className="rounded-[22px] border border-slate-200 bg-[#f8fbff] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Billing contact state</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <InfoPill label="Contact name" value={request.billingContactName ?? "Not provided"} />
+            <InfoPill label="Contact email" value={request.billingContactEmail ?? "Not provided"} />
+            <InfoPill label="Failure recorded" value={formatDateLabel(request.billingFailedAt, "No failure logged")} />
+          </div>
+        </div>
+      ) : null}
 
       {request.organizationWebsite ? (
         <div className="rounded-[22px] border border-slate-200 bg-[#f8fbff] px-4 py-4">
@@ -725,6 +1011,84 @@ export default function PlatformAdminRequestsPage() {
         description="New tenant creation now stops here first. Review the request, provision the tenant, and verify the initial access invite actually went out."
         stats={headerStats}
       />
+
+      <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Commercial changes</p>
+            <h2 className="text-lg font-semibold tracking-[-0.03em] text-slate-950">Package upgrade requests</h2>
+            <p className="text-sm text-slate-500">Club-admin upgrade requests appear here when tenants hit package limits and ask for a higher tier.</p>
+          </div>
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
+            Pending upgrades: <span className="ml-1 font-medium text-slate-700">{pendingUpgradeRequests.length}</span>
+          </div>
+        </div>
+        <div className="mt-4 space-y-3">
+          {upgradeRequests.length === 0 ? (
+            <EmptyStateCard
+              eyebrow="Upgrade queue"
+              title="No package upgrade requests yet."
+              description="Upgrade requests appear here when club-admins hit team, coach, or athlete package caps and ask for a higher tier."
+              className="rounded-[20px] bg-slate-50 px-4 py-6 shadow-none"
+              contentClassName="gap-3"
+            />
+          ) : (
+            upgradeRequests.slice(0, 6).map((request) => (
+              <article key={request.id} className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        {request.status}
+                      </span>
+                      <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        {getPackageById(request.currentPackage)?.label ?? request.currentPackage} to {getPackageById(request.requestedPackage)?.label ?? request.requestedPackage}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-950">{request.organizationName}</h3>
+                      <p className="text-sm text-slate-500">Requested {new Date(request.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <RequestMetaCard
+                        label="Current package"
+                        value={getPackageById(request.currentPackage)?.label ?? request.currentPackage}
+                        detail={`Requested package: ${getPackageById(request.requestedPackage)?.label ?? request.requestedPackage}`}
+                      />
+                      <RequestMetaCard
+                        label="Reason"
+                        value={request.reason?.trim() || "No reason provided"}
+                        detail={request.reviewNotes ? `Review notes: ${request.reviewNotes}` : request.reviewedAt ? `Reviewed ${formatDateLabel(request.reviewedAt)}` : "Awaiting review"}
+                      />
+                    </div>
+                  </div>
+                  {request.status === "pending" ? (
+                    <div className="flex flex-wrap gap-2 lg:max-w-[260px] lg:justify-end">
+                      <Button
+                        type="button"
+                        className="h-10 rounded-full px-4"
+                        disabled={submittingId === `upgrade-${request.id}`}
+                        onClick={() => void handleUpgradeRequestReview(request.id, "approved")}
+                      >
+                        Approve upgrade
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-full border-slate-200 px-4"
+                        disabled={submittingId === `upgrade-${request.id}`}
+                        onClick={() => void handleUpgradeRequestReview(request.id, "rejected")}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
 
       {error ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -988,6 +1352,8 @@ export default function PlatformAdminRequestsPage() {
                         {request.requestedPlan}
                       </span>
                       <StatusBadge status={request.status} />
+                      <LifecycleBadge lifecycleStatus={request.lifecycleStatus} />
+                      <BillingBadge billingStatus={request.billingStatus} />
                       {request.accessInviteSentAt ? (
                         <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1368ff]">
                           Invite sent
@@ -1015,6 +1381,16 @@ export default function PlatformAdminRequestsPage() {
                         label="Delivery"
                         value={request.accessInviteSentAt ? "Initial access sent" : "Awaiting invite"}
                         detail={request.provisionedTenantId ? `Tenant: ${request.provisionedTenantId}` : "Tenant not provisioned yet"}
+                      />
+                      <RequestMetaCard
+                        label="Lifecycle"
+                        value={request.lifecycleStatus ? lifecycleLabels[request.lifecycleStatus] : "Not set"}
+                        detail={request.billingStatus ? `Billing: ${billingLabels[request.billingStatus]}` : "Billing not started"}
+                      />
+                      <RequestMetaCard
+                        label="Requested package"
+                        value={request.requestedPlan}
+                        detail={`${request.expectedCoachCount ?? 0} coaches · ${request.expectedAthleteCount ?? 0} athletes`}
                       />
                     </div>
 
@@ -1086,6 +1462,8 @@ export default function PlatformAdminRequestsPage() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2">
                           <StatusBadge status={request.status} />
+                          <LifecycleBadge lifecycleStatus={request.lifecycleStatus} />
+                          <BillingBadge billingStatus={request.billingStatus} />
                           {request.accessInviteSentAt ? (
                             <span className="rounded-full bg-[#dbeafe] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1368ff]">
                               Invite sent
@@ -1100,7 +1478,9 @@ export default function PlatformAdminRequestsPage() {
                     <TableCell className="px-5 py-4 align-top">
                       <div className="space-y-1.5">
                         <p className="text-sm font-medium text-slate-900">{request.requestedPlan}</p>
-                        <p className="text-xs text-slate-500">{request.expectedSeats} expected seats</p>
+                        <p className="text-xs text-slate-500">
+                          {request.lifecycleStatus ? lifecycleLabels[request.lifecycleStatus] : "Lifecycle not set"}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">

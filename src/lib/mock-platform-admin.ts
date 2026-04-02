@@ -1,4 +1,6 @@
 import { getCookieValue, USER_COOKIE } from "@/lib/auth-session"
+import type { PackageId } from "@/lib/billing/package-catalog"
+import type { TenantBillingStatus, TenantLifecycleStatus } from "@/lib/tenant/lifecycle"
 
 export type MockPlatformAdminRequest = {
   id: string
@@ -9,18 +11,44 @@ export type MockPlatformAdminRequest = {
   organizationType: string | null
   organizationWebsite: string | null
   region: string | null
-  requestedPlan: "starter" | "pro" | "enterprise"
+  requestedPlan: PackageId
   expectedSeats: number
   expectedCoachCount: number | null
   expectedAthleteCount: number | null
   desiredStartDate: string | null
   notes: string | null
   status: "pending" | "approved" | "rejected" | "cancelled"
+  lifecycleStatus: TenantLifecycleStatus
+  billingStatus: TenantBillingStatus
+  billingProvider: string | null
+  billingCustomerId: string | null
+  billingSubscriptionId: string | null
+  billingContactName: string | null
+  billingContactEmail: string | null
+  billingCycle: "monthly" | "annual" | null
+  billingStartedAt: string | null
+  billingFailedAt: string | null
+  previousLifecycleStatus: TenantLifecycleStatus | null
   reviewNotes: string | null
   reviewedAt: string | null
   provisionedTenantId: string | null
   accessInviteSentAt: string | null
   accessInviteLastError: string | null
+  createdAt: string
+}
+
+export type MockPackageUpgradeRequest = {
+  id: string
+  tenantId: string
+  organizationName: string
+  requestedByUserId: string | null
+  requestedByEmail: string | null
+  currentPackage: PackageId
+  requestedPackage: PackageId
+  reason: string | null
+  status: "pending" | "approved" | "rejected" | "cancelled"
+  reviewNotes: string | null
+  reviewedAt: string | null
   createdAt: string
 }
 
@@ -43,7 +71,7 @@ type SubmitMockTenantProvisionRequestInput = {
   jobTitle: string
   organization: string
   organizationType: string
-  requestedPlan: "starter" | "pro" | "enterprise"
+  requestedPlan: PackageId
   organizationWebsite: string
   region: string
   expectedCoachCount: number
@@ -54,6 +82,7 @@ type SubmitMockTenantProvisionRequestInput = {
 
 const PLATFORM_ADMIN_REQUESTS_KEY = "pacelab:platform-admin:requests"
 const PLATFORM_ADMIN_AUDIT_KEY = "pacelab:platform-admin:audit"
+const PLATFORM_ADMIN_PACKAGE_UPGRADES_KEY = "pacelab:platform-admin:package-upgrades"
 
 function safeParse<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback
@@ -118,6 +147,15 @@ export function loadMockPlatformAuditEvents(): MockPlatformAuditEvent[] {
   return [...events].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
 }
 
+export function loadMockPackageUpgradeRequests(): MockPackageUpgradeRequest[] {
+  const requests = loadStorage<MockPackageUpgradeRequest[]>(PLATFORM_ADMIN_PACKAGE_UPGRADES_KEY, [])
+  return [...requests].sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+}
+
+export function saveMockPackageUpgradeRequests(requests: MockPackageUpgradeRequest[]) {
+  saveStorage(PLATFORM_ADMIN_PACKAGE_UPGRADES_KEY, requests)
+}
+
 export function submitMockTenantProvisionRequest(input: SubmitMockTenantProvisionRequestInput): MockPlatformAdminRequest {
   const now = new Date().toISOString()
   const request: MockPlatformAdminRequest = {
@@ -136,6 +174,17 @@ export function submitMockTenantProvisionRequest(input: SubmitMockTenantProvisio
     desiredStartDate: input.desiredStartDate || null,
     notes: input.notes.trim() || null,
     status: "pending",
+    lifecycleStatus: "pending_review",
+    billingStatus: "pending",
+    billingProvider: "mock-billing",
+    billingCustomerId: null,
+    billingSubscriptionId: null,
+    billingContactName: input.fullName.trim() || null,
+    billingContactEmail: input.email.trim().toLowerCase() || null,
+    billingCycle: "monthly",
+    billingStartedAt: null,
+    billingFailedAt: null,
+    previousLifecycleStatus: null,
     reviewNotes: null,
     reviewedAt: null,
     provisionedTenantId: null,
@@ -174,14 +223,15 @@ export function reviewMockTenantProvisionRequest(params: {
 
   const reviewedAt = new Date().toISOString()
   const next = requests.map((item) =>
-    item.id === params.requestId
-      ? {
-          ...item,
-          status: params.status,
-          reviewNotes: params.reviewNotes?.trim() || null,
-          reviewedAt,
-        }
-      : item,
+        item.id === params.requestId
+          ? {
+              ...item,
+              status: params.status,
+              lifecycleStatus: (params.status === "approved" ? "approved_pending_billing" : "cancelled") as TenantLifecycleStatus,
+              reviewNotes: params.reviewNotes?.trim() || null,
+              reviewedAt,
+            }
+          : item,
   )
   saveMockPlatformAdminRequests(next)
 
@@ -217,17 +267,20 @@ export function approveAndProvisionMockTenantRequest(params: {
   const tenantId = `${slugifyTenantId(target.organizationName)}-${target.id.slice(-6)}`
 
   const next = requests.map((item) =>
-    item.id === params.requestId
-      ? {
-          ...item,
-          status: "approved" as const,
-          reviewNotes: params.reviewNotes?.trim() || null,
-          reviewedAt,
-          provisionedTenantId: tenantId,
-          accessInviteSentAt: sentAt,
-          accessInviteLastError: null,
-        }
-      : item,
+        item.id === params.requestId
+          ? {
+              ...item,
+              status: "approved" as const,
+              lifecycleStatus: "approved_pending_billing" as const,
+              billingStatus: "pending" as const,
+              reviewNotes: params.reviewNotes?.trim() || null,
+              reviewedAt,
+              previousLifecycleStatus: null,
+              provisionedTenantId: tenantId,
+              accessInviteSentAt: sentAt,
+              accessInviteLastError: null,
+            }
+          : item,
   )
   saveMockPlatformAdminRequests(next)
 
@@ -392,4 +445,154 @@ export function logMockPlatformAdminExport(params: {
       filters: params.filters ?? {},
     },
   })
+}
+
+export function setMockTenantRequestLifecycleState(params: {
+  requestId: string
+  lifecycleStatus: TenantLifecycleStatus
+  billingStatus?: TenantBillingStatus | null
+  reviewNotes?: string
+}) {
+  const requests = loadMockPlatformAdminRequests()
+  const target = requests.find((item) => item.id === params.requestId)
+  if (!target) return null
+
+  const next = requests.map((item) =>
+    item.id === params.requestId
+      ? {
+          ...item,
+          lifecycleStatus: params.lifecycleStatus,
+          billingStatus: params.billingStatus ?? item.billingStatus,
+          billingFailedAt: params.lifecycleStatus === "billing_failed" ? new Date().toISOString() : item.billingFailedAt,
+          previousLifecycleStatus:
+            params.lifecycleStatus === "suspended" && item.lifecycleStatus !== "suspended"
+              ? item.lifecycleStatus
+              : item.lifecycleStatus === "suspended" && params.lifecycleStatus !== "suspended"
+                ? null
+                : item.previousLifecycleStatus,
+          reviewNotes: params.reviewNotes?.trim() || item.reviewNotes,
+          reviewedAt: item.reviewedAt ?? new Date().toISOString(),
+        }
+      : item,
+  )
+
+  saveMockPlatformAdminRequests(next)
+  insertAuditEvent({
+    actorUserId: null,
+    actorEmail: getCurrentActorEmail(),
+    actorRole: "platform-admin",
+    action: "tenant_request_lifecycle_updated",
+    target: target.organizationName,
+    detail: `Lifecycle moved to ${params.lifecycleStatus}.`,
+    metadata: {
+      requestId: target.id,
+      requestorEmail: target.requestorEmail,
+      lifecycleStatus: params.lifecycleStatus,
+      billingStatus: params.billingStatus ?? target.billingStatus,
+      reviewNotes: params.reviewNotes?.trim() || null,
+    },
+  })
+
+  return next.find((item) => item.id === params.requestId) ?? null
+}
+
+export function submitMockPackageUpgradeRequest(params: {
+  tenantId: string
+  organizationName: string
+  requestedByUserId?: string | null
+  requestedByEmail?: string | null
+  currentPackage: PackageId
+  requestedPackage: PackageId
+  reason?: string | null
+}) {
+  const existing = loadMockPackageUpgradeRequests().find((item) => item.tenantId === params.tenantId && item.status === "pending")
+  if (existing) return null
+
+  const request: MockPackageUpgradeRequest = {
+    id: createId("package-upgrade"),
+    tenantId: params.tenantId,
+    organizationName: params.organizationName,
+    requestedByUserId: params.requestedByUserId ?? null,
+    requestedByEmail: params.requestedByEmail ?? null,
+    currentPackage: params.currentPackage,
+    requestedPackage: params.requestedPackage,
+    reason: params.reason?.trim() || null,
+    status: "pending",
+    reviewNotes: null,
+    reviewedAt: null,
+    createdAt: new Date().toISOString(),
+  }
+
+  saveMockPackageUpgradeRequests([request, ...loadMockPackageUpgradeRequests()])
+  insertAuditEvent({
+    actorUserId: params.requestedByUserId ?? null,
+    actorEmail: params.requestedByEmail ?? null,
+    actorRole: "club-admin",
+    action: "tenant_package_upgrade_requested",
+    target: params.organizationName,
+    detail: `Package upgrade requested from ${params.currentPackage} to ${params.requestedPackage}.`,
+    metadata: {
+      upgradeRequestId: request.id,
+      tenantId: params.tenantId,
+      currentPackage: params.currentPackage,
+      requestedPackage: params.requestedPackage,
+    },
+  })
+
+  return request
+}
+
+export function reviewMockPackageUpgradeRequest(params: {
+  upgradeRequestId: string
+  status: "approved" | "rejected" | "cancelled"
+  reviewNotes?: string
+}) {
+  const upgrades = loadMockPackageUpgradeRequests()
+  const target = upgrades.find((item) => item.id === params.upgradeRequestId)
+  if (!target || target.status !== "pending") return null
+
+  const reviewedAt = new Date().toISOString()
+  const nextUpgrades = upgrades.map((item) =>
+    item.id === params.upgradeRequestId
+      ? {
+          ...item,
+          status: params.status,
+          reviewNotes: params.reviewNotes?.trim() || null,
+          reviewedAt,
+        }
+      : item,
+  )
+  saveMockPackageUpgradeRequests(nextUpgrades)
+
+  if (params.status === "approved") {
+    const requests = loadMockPlatformAdminRequests()
+    const nextRequests = requests.map((item) =>
+      item.provisionedTenantId === target.tenantId
+        ? {
+            ...item,
+            requestedPlan: target.requestedPackage,
+          }
+        : item,
+    )
+    saveMockPlatformAdminRequests(nextRequests)
+  }
+
+  insertAuditEvent({
+    actorUserId: null,
+    actorEmail: getCurrentActorEmail(),
+    actorRole: "platform-admin",
+    action: "tenant_package_upgrade_reviewed",
+    target: target.organizationName,
+    detail: `Package upgrade request moved to ${params.status}.`,
+    metadata: {
+      upgradeRequestId: target.id,
+      tenantId: target.tenantId,
+      currentPackage: target.currentPackage,
+      requestedPackage: target.requestedPackage,
+      status: params.status,
+      reviewNotes: params.reviewNotes?.trim() || null,
+    },
+  })
+
+  return nextUpgrades.find((item) => item.id === params.upgradeRequestId) ?? null
 }

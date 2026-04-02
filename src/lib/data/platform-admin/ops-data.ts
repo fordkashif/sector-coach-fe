@@ -2,15 +2,20 @@ import {
   approveAndProvisionMockTenantRequest,
   dispatchMockPendingNotificationEmails,
   loadMockPlatformAdminRequests,
+  loadMockPackageUpgradeRequests,
   loadMockPlatformAuditEvents,
   logMockPlatformAdminExport,
   previewMockInitialAccessInvite,
   resendMockInitialAccessInvite,
+  reviewMockPackageUpgradeRequest,
   reviewMockTenantProvisionRequest,
+  setMockTenantRequestLifecycleState,
 } from "@/lib/mock-platform-admin"
+import type { PackageId } from "@/lib/billing/package-catalog"
 import { err, mapPostgrestError, ok, type DataError, type Result } from "@/lib/data/result"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 import { getBackendMode } from "@/lib/supabase/config"
+import type { TenantBillingStatus, TenantLifecycleStatus } from "@/lib/tenant/lifecycle"
 
 export type PlatformAdminRequestRecord = {
   id: string
@@ -21,13 +26,24 @@ export type PlatformAdminRequestRecord = {
   organizationType: string | null
   organizationWebsite: string | null
   region: string | null
-  requestedPlan: "starter" | "pro" | "enterprise"
+  requestedPlan: PackageId
   expectedSeats: number
   expectedCoachCount: number | null
   expectedAthleteCount: number | null
   desiredStartDate: string | null
   notes: string | null
   status: "pending" | "approved" | "rejected" | "cancelled"
+  lifecycleStatus: TenantLifecycleStatus | null
+  billingStatus: TenantBillingStatus | null
+  billingProvider: string | null
+  billingCustomerId: string | null
+  billingSubscriptionId: string | null
+  billingContactName: string | null
+  billingContactEmail: string | null
+  billingCycle: "monthly" | "annual" | null
+  billingStartedAt: string | null
+  billingFailedAt: string | null
+  previousLifecycleStatus: TenantLifecycleStatus | null
   reviewNotes: string | null
   reviewedAt: string | null
   provisionedTenantId: string | null
@@ -46,6 +62,21 @@ export type PlatformAuditEventRecord = {
   detail: string | null
   metadata: Record<string, unknown>
   occurredAt: string
+  createdAt: string
+}
+
+export type PlatformAdminPackageUpgradeRequestRecord = {
+  id: string
+  tenantId: string
+  organizationName: string
+  requestedByUserId: string | null
+  requestedByEmail: string | null
+  currentPackage: PackageId
+  requestedPackage: PackageId
+  reason: string | null
+  status: "pending" | "approved" | "rejected" | "cancelled"
+  reviewNotes: string | null
+  reviewedAt: string | null
   createdAt: string
 }
 
@@ -87,7 +118,7 @@ export async function getPlatformAdminRequestQueue(): Promise<Result<PlatformAdm
   const { data, error } = await clientResult.client
     .from("tenant_provision_requests")
     .select(
-      "id, organization_name, requestor_name, requestor_email, job_title, organization_type, organization_website, region, requested_plan, expected_seats, expected_coach_count, expected_athlete_count, desired_start_date, notes, status, review_notes, reviewed_at, provisioned_tenant_id, access_invite_sent_at, access_invite_last_error, created_at",
+      "id, organization_name, requestor_name, requestor_email, job_title, organization_type, organization_website, region, requested_plan, expected_seats, expected_coach_count, expected_athlete_count, desired_start_date, notes, status, lifecycle_status, billing_status, billing_provider, billing_customer_id, billing_subscription_id, billing_contact_name, billing_contact_email, billing_cycle, billing_started_at, billing_failed_at, previous_lifecycle_status, review_notes, reviewed_at, provisioned_tenant_id, access_invite_sent_at, access_invite_last_error, created_at",
     )
     .order("created_at", { ascending: false })
 
@@ -103,13 +134,24 @@ export async function getPlatformAdminRequestQueue(): Promise<Result<PlatformAdm
       organization_type: string | null
       organization_website: string | null
       region: string | null
-      requested_plan: PlatformAdminRequestRecord["requestedPlan"]
+      requested_plan: PackageId
       expected_seats: number
       expected_coach_count: number | null
       expected_athlete_count: number | null
       desired_start_date: string | null
       notes: string | null
       status: PlatformAdminRequestRecord["status"]
+      lifecycle_status: TenantLifecycleStatus | null
+      billing_status: TenantBillingStatus | null
+      billing_provider: string | null
+      billing_customer_id: string | null
+      billing_subscription_id: string | null
+      billing_contact_name: string | null
+      billing_contact_email: string | null
+      billing_cycle: "monthly" | "annual" | null
+      billing_started_at: string | null
+      billing_failed_at: string | null
+      previous_lifecycle_status: TenantLifecycleStatus | null
       review_notes: string | null
       reviewed_at: string | null
       provisioned_tenant_id: string | null
@@ -132,6 +174,17 @@ export async function getPlatformAdminRequestQueue(): Promise<Result<PlatformAdm
       desiredStartDate: row.desired_start_date,
       notes: row.notes,
       status: row.status,
+      lifecycleStatus: row.lifecycle_status,
+      billingStatus: row.billing_status,
+      billingProvider: row.billing_provider,
+      billingCustomerId: row.billing_customer_id,
+      billingSubscriptionId: row.billing_subscription_id,
+      billingContactName: row.billing_contact_name,
+      billingContactEmail: row.billing_contact_email,
+      billingCycle: row.billing_cycle,
+      billingStartedAt: row.billing_started_at,
+      billingFailedAt: row.billing_failed_at,
+      previousLifecycleStatus: row.previous_lifecycle_status,
       reviewNotes: row.review_notes,
       reviewedAt: row.reviewed_at,
       provisionedTenantId: row.provisioned_tenant_id,
@@ -178,6 +231,51 @@ export async function getPlatformAuditEvents(limit = 100): Promise<Result<Platfo
       detail: row.detail,
       metadata: row.metadata ?? {},
       occurredAt: row.occurred_at,
+      createdAt: row.created_at,
+    })),
+  )
+}
+
+export async function getPlatformAdminPackageUpgradeRequests(): Promise<Result<PlatformAdminPackageUpgradeRequestRecord[]>> {
+  if (isMockMode()) return ok(loadMockPackageUpgradeRequests())
+
+  const clientResult = requireSupabaseClient("getPlatformAdminPackageUpgradeRequests")
+  if (!clientResult.ok) return clientResult
+
+  const { data, error } = await clientResult.client
+    .from("tenant_package_upgrade_requests")
+    .select(
+      "id, tenant_id, current_package, requested_package, reason, status, review_notes, reviewed_at, created_at, requested_by_user_id, tenants(name)",
+    )
+    .order("created_at", { ascending: false })
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+
+  return ok(
+    ((data as Array<{
+      id: string
+      tenant_id: string
+      current_package: PackageId
+      requested_package: PackageId
+      reason: string | null
+      status: PlatformAdminPackageUpgradeRequestRecord["status"]
+      review_notes: string | null
+      reviewed_at: string | null
+      created_at: string
+      requested_by_user_id: string | null
+      tenants: Array<{ name: string | null }> | { name: string | null } | null
+    }> | null) ?? []).map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      organizationName: (Array.isArray(row.tenants) ? row.tenants[0]?.name : row.tenants?.name) ?? "Tenant",
+      requestedByUserId: row.requested_by_user_id,
+      requestedByEmail: null,
+      currentPackage: row.current_package,
+      requestedPackage: row.requested_package,
+      reason: row.reason,
+      status: row.status,
+      reviewNotes: row.review_notes,
+      reviewedAt: row.reviewed_at,
       createdAt: row.created_at,
     })),
   )
@@ -349,6 +447,54 @@ export async function approveAndProvisionTenantRequest(params: {
     accessInviteError: null,
     accessInviteActionLink: inviteResult.data.actionLink,
   })
+}
+
+export async function setTenantRequestLifecycleState(params: {
+  requestId: string
+  lifecycleStatus: TenantLifecycleStatus
+  billingStatus?: TenantBillingStatus | null
+  reviewNotes?: string
+}): Promise<Result<void>> {
+  if (isMockMode()) {
+    const updated = setMockTenantRequestLifecycleState(params)
+    return updated ? ok(undefined) : err("NOT_FOUND", "Tenant provisioning request not found.")
+  }
+
+  const clientResult = requireSupabaseClient("setTenantRequestLifecycleState")
+  if (!clientResult.ok) return clientResult
+
+  const { error } = await clientResult.client.rpc("set_tenant_request_lifecycle_state", {
+    p_request_id: params.requestId,
+    p_lifecycle_status: params.lifecycleStatus,
+    p_billing_status: params.billingStatus ?? null,
+    p_review_notes: params.reviewNotes?.trim() || null,
+  })
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+  return ok(undefined)
+}
+
+export async function reviewTenantPackageUpgradeRequest(params: {
+  upgradeRequestId: string
+  status: "approved" | "rejected" | "cancelled"
+  reviewNotes?: string
+}): Promise<Result<void>> {
+  if (isMockMode()) {
+    const updated = reviewMockPackageUpgradeRequest(params)
+    return updated ? ok(undefined) : err("NOT_FOUND", "Package upgrade request not found.")
+  }
+
+  const clientResult = requireSupabaseClient("reviewTenantPackageUpgradeRequest")
+  if (!clientResult.ok) return clientResult
+
+  const { error } = await clientResult.client.rpc("review_tenant_package_upgrade_request", {
+    p_upgrade_request_id: params.upgradeRequestId,
+    p_status: params.status,
+    p_review_notes: params.reviewNotes?.trim() || null,
+  })
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+  return ok(undefined)
 }
 
 export async function getCurrentPlatformAdminIdentity(): Promise<Result<{ email: string }>> {

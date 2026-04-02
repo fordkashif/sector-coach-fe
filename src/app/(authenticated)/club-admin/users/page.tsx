@@ -26,13 +26,18 @@ import {
 import { DataSurfaceToolbar } from "@/components/ui/data-surface-toolbar"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { StandardPageHeader } from "@/components/ui/standard-page-header"
 import { useClubAdmin } from "@/lib/club-admin-context"
 import {
   createCoachInvite,
+  getClubAdminPackageUpgradeRequests,
+  getCurrentClubAdminActivationState,
   insertAuditEvent,
+  submitClubAdminPackageUpgradeRequest,
   updateProfileRoleAndStatus,
 } from "@/lib/data/club-admin/ops-data"
+import { getNextPackageTier, getPackageById, type PackageId } from "@/lib/billing/package-catalog"
 import type { ClubUser, CoachInvite, UserRole } from "@/lib/mock-club-admin"
 import { getBackendMode } from "@/lib/supabase/config"
 import {
@@ -61,6 +66,11 @@ export default function ClubAdminUsersPage() {
   const [coachInviteEmail, setCoachInviteEmail] = useState("")
   const [coachInviteTeamId, setCoachInviteTeamId] = useState<string>("none")
   const [inviteComposerOpen, setInviteComposerOpen] = useState(false)
+  const [requestedPlan, setRequestedPlan] = useState<PackageId | null>(null)
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false)
+  const [upgradeReason, setUpgradeReason] = useState("")
+  const [upgradeSaving, setUpgradeSaving] = useState(false)
+  const [pendingUpgradeRequest, setPendingUpgradeRequest] = useState<{ requestedPackage: PackageId; createdAt: string } | null>(null)
   const [useDesktopInviteDialog, setUseDesktopInviteDialog] = useState(() => {
     if (typeof window === "undefined") return false
     return window.matchMedia("(min-width: 640px)").matches
@@ -151,8 +161,38 @@ export default function ClubAdminUsersPage() {
     return () => mediaQuery.removeEventListener("change", sync)
   }, [])
 
+  useEffect(() => {
+    if (!isSupabaseMode) return
+    let cancelled = false
+
+    void Promise.all([getCurrentClubAdminActivationState(), getClubAdminPackageUpgradeRequests()]).then(([activationResult, upgradeResult]) => {
+      if (cancelled) return
+      if (activationResult.ok) setRequestedPlan(activationResult.data.requestedPlan)
+      if (upgradeResult.ok) {
+        const firstPendingUpgrade = upgradeResult.data.find((item) => item.status === "pending") ?? null
+        setPendingUpgradeRequest(
+          firstPendingUpgrade
+            ? { requestedPackage: firstPendingUpgrade.requestedPackage, createdAt: firstPendingUpgrade.createdAt }
+            : null,
+        )
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSupabaseMode])
+
   const handleSendCoachInvite = async () => {
     if (!coachInviteEmail.trim()) return
+    if (coachLimitReached) {
+      setBackendError(
+        packageDefinition
+          ? `${packageDefinition.label} allows up to ${packageDefinition.limits.coaches} coach${packageDefinition.limits.coaches === 1 ? "" : "es"}. Upgrade the package before inviting another coach.`
+          : "This tenant has reached the package limit for coaches.",
+      )
+      return
+    }
     if (backendMode === "supabase") {
       const result = await createCoachInvite({
         email: coachInviteEmail.trim().toLowerCase(),
@@ -206,6 +246,41 @@ export default function ClubAdminUsersPage() {
     setInviteComposerOpen(false)
   }
 
+  const headerStats = [
+    { label: "Users", value: users.length },
+    { label: "Invites", value: invites.length },
+    { label: "Active", value: users.filter((user) => user.status === "active").length },
+    { label: "Suspended", value: users.filter((user) => user.status !== "active").length },
+  ]
+  const pendingInvites = invites.filter((invite) => invite.status === "pending").length
+  const packageDefinition = getPackageById(requestedPlan)
+  const activeCoachCount = users.filter((user) => user.role === "coach" && user.status === "active").length
+  const coachLimitReached = Boolean(packageDefinition && activeCoachCount >= packageDefinition.limits.coaches)
+  const suggestedUpgradePackage = getNextPackageTier(requestedPlan)
+
+  const handleSubmitUpgradeRequest = async () => {
+    if (!isSupabaseMode || !suggestedUpgradePackage || pendingUpgradeRequest) return
+    setUpgradeSaving(true)
+    const result = await submitClubAdminPackageUpgradeRequest({
+      requestedPackage: suggestedUpgradePackage,
+      reason: upgradeReason,
+    })
+    setUpgradeSaving(false)
+
+    if (!result.ok) {
+      setBackendError(result.error.message)
+      return
+    }
+
+    setPendingUpgradeRequest({
+      requestedPackage: suggestedUpgradePackage,
+      createdAt: new Date().toISOString(),
+    })
+    setUpgradeReason("")
+    setUpgradeDialogOpen(false)
+    setBackendError(null)
+  }
+
   const inviteComposer = (
     <div className="space-y-4">
       <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
@@ -238,17 +313,14 @@ export default function ClubAdminUsersPage() {
             </SelectContent>
           </Select>
         </div>
+        {coachLimitReached && packageDefinition ? (
+          <p className="rounded-[16px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            {packageDefinition.label} allows up to {packageDefinition.limits.coaches} coach{packageDefinition.limits.coaches === 1 ? "" : "es"}. Upgrade the package before sending another invite.
+          </p>
+        ) : null}
       </div>
     </div>
   )
-
-  const headerStats = [
-    { label: "Users", value: users.length },
-    { label: "Invites", value: invites.length },
-    { label: "Active", value: users.filter((user) => user.status === "active").length },
-    { label: "Suspended", value: users.filter((user) => user.status !== "active").length },
-  ]
-  const pendingInvites = invites.filter((invite) => invite.status === "pending").length
 
   return (
     <div className="mx-auto w-full max-w-8xl space-y-5 p-4 sm:space-y-6 sm:p-6">
@@ -262,6 +334,67 @@ export default function ClubAdminUsersPage() {
       {backendError ? (
         <section className="rounded-[22px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Backend sync issue: {backendError}
+        </section>
+      ) : null}
+      {packageDefinition ? (
+        <section className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600">
+          <p className="font-medium text-slate-950">{packageDefinition.label} package</p>
+          <p className="mt-1">
+            Active coaches: {activeCoachCount}/{Number.isFinite(packageDefinition.limits.coaches) ? packageDefinition.limits.coaches : "Unlimited"}
+          </p>
+        {coachLimitReached ? (
+            <p className="mt-2 text-sm text-amber-700">
+              This tenant is at coach capacity. Upgrade the package before sending another coach invite.
+            </p>
+          ) : null}
+          {coachLimitReached ? (
+            pendingUpgradeRequest ? (
+              <p className="mt-2 text-sm text-[#1368ff]">
+                Upgrade request pending for {getPackageById(pendingUpgradeRequest.requestedPackage)?.label ?? pendingUpgradeRequest.requestedPackage}.
+              </p>
+            ) : suggestedUpgradePackage ? (
+              <div className="mt-3">
+                <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" className="h-10 rounded-full border-slate-200 px-4">
+                      Request upgrade to {getPackageById(suggestedUpgradePackage)?.label ?? suggestedUpgradePackage}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Request package upgrade</DialogTitle>
+                      <DialogDescription>
+                        Submit an upgrade request to move this tenant from {packageDefinition.label} to {getPackageById(suggestedUpgradePackage)?.label ?? suggestedUpgradePackage}.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        Current package: <span className="font-medium text-slate-950">{packageDefinition.label}</span><br />
+                        Requested package: <span className="font-medium text-slate-950">{getPackageById(suggestedUpgradePackage)?.label ?? suggestedUpgradePackage}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <label htmlFor="coach-upgrade-reason" className="text-sm font-medium text-slate-950">Reason</label>
+                        <Textarea
+                          id="coach-upgrade-reason"
+                          value={upgradeReason}
+                          onChange={(event) => setUpgradeReason(event.target.value)}
+                          placeholder="Explain why this tenant needs more coach capacity."
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" className="border-slate-200" onClick={() => setUpgradeDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="button" disabled={upgradeSaving} onClick={() => void handleSubmitUpgradeRequest()}>
+                        {upgradeSaving ? "Submitting..." : "Submit upgrade request"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : null
+          ) : null}
         </section>
       ) : null}
       {isSupabaseMode && backendLoading ? (
@@ -288,6 +421,7 @@ export default function ClubAdminUsersPage() {
                   <DialogTrigger asChild>
                     <Button
                       type="button"
+                      disabled={coachLimitReached}
                       className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                     >
                       New invite
@@ -312,6 +446,7 @@ export default function ClubAdminUsersPage() {
                       </Button>
                       <Button
                         type="button"
+                        disabled={coachLimitReached}
                         className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                         onClick={() => void handleSendCoachInvite()}
                       >
@@ -325,6 +460,7 @@ export default function ClubAdminUsersPage() {
                   <DrawerTrigger asChild>
                     <Button
                       type="button"
+                      disabled={coachLimitReached}
                       className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                     >
                       New invite
@@ -341,6 +477,7 @@ export default function ClubAdminUsersPage() {
                     <DrawerFooter className="gap-3">
                       <Button
                         type="button"
+                        disabled={coachLimitReached}
                         className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                         onClick={() => void handleSendCoachInvite()}
                       >
@@ -374,6 +511,7 @@ export default function ClubAdminUsersPage() {
                   actions={
                     <Button
                       type="button"
+                      disabled={coachLimitReached}
                       className="h-10 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-4 text-white shadow-[0_12px_28px_rgba(31,140,255,0.22)] hover:opacity-95"
                       onClick={() => setInviteComposerOpen(true)}
                     >

@@ -9,6 +9,7 @@ export type GuardAuthContext = {
   role: AppRole | null
   tenantId: string | null
   clubAdminOnboardingComplete: boolean
+  clubAdminLifecycleStatus: string | null
 }
 
 function isAppRole(value: unknown): value is AppRole {
@@ -26,6 +27,7 @@ async function getMockGuardAuthContext(): Promise<GuardAuthContext> {
     role: getRoleFromCookie(),
     tenantId: getCookieValue(TENANT_COOKIE),
     clubAdminOnboardingComplete: true,
+    clubAdminLifecycleStatus: null,
   }
 }
 
@@ -37,6 +39,7 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
       role: null,
       tenantId: null,
       clubAdminOnboardingComplete: true,
+      clubAdminLifecycleStatus: null,
     }
   }
 
@@ -48,6 +51,7 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
       role: null,
       tenantId: null,
       clubAdminOnboardingComplete: true,
+      clubAdminLifecycleStatus: null,
     }
   }
 
@@ -58,16 +62,17 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
       role: null,
       tenantId: null,
       clubAdminOnboardingComplete: true,
+      clubAdminLifecycleStatus: null,
     }
   }
 
   let clubAdminOnboardingComplete = true
+  let clubAdminLifecycleStatus: string | null = null
   if (actor.role === "club-admin" && actor.tenantId) {
-    const onboardingResult = await supabase
-      .from("club_profiles")
-      .select("password_set_at, onboarding_completed_at")
-      .eq("tenant_id", actor.tenantId)
-      .maybeSingle()
+    const [onboardingResult, activationResult] = await Promise.all([
+      supabase.from("club_profiles").select("password_set_at, onboarding_completed_at").eq("tenant_id", actor.tenantId).maybeSingle(),
+      supabase.rpc("get_current_club_admin_activation_state"),
+    ])
 
     if (!onboardingResult.error) {
       const row = onboardingResult.data as {
@@ -77,6 +82,11 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
 
       clubAdminOnboardingComplete = Boolean(row?.password_set_at && row?.onboarding_completed_at)
     }
+
+    if (!activationResult.error) {
+      const row = Array.isArray(activationResult.data) ? activationResult.data[0] : activationResult.data
+      clubAdminLifecycleStatus = (row?.lifecycle_status as string | null) ?? null
+    }
   }
 
   return {
@@ -84,6 +94,7 @@ async function getSupabaseGuardAuthContext(): Promise<GuardAuthContext> {
     role: actor.role,
     tenantId: actor.tenantId,
     clubAdminOnboardingComplete,
+    clubAdminLifecycleStatus,
   }
 }
 

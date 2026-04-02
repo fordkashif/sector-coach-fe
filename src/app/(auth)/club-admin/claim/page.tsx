@@ -80,6 +80,15 @@ async function diagnoseClaimFailure(
   return "The claim session exists, but the club-admin profile bootstrap did not complete."
 }
 
+async function getCurrentClubAdminActivationState(
+  supabase: NonNullable<ReturnType<typeof getBrowserSupabaseClient>>,
+) {
+  const result = await supabase.rpc("get_current_club_admin_activation_state")
+  if (result.error) return null
+  const row = (Array.isArray(result.data) ? result.data[0] : result.data) as { lifecycle_status: string | null } | null
+  return row?.lifecycle_status ?? null
+}
+
 export default function ClubAdminClaimPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -154,6 +163,13 @@ export default function ClubAdminClaimPage() {
       if (!profileResult.ok) {
         setError(profileResult.error.message)
         setLoading(false)
+        return
+      }
+
+      const lifecycleStatus = await getCurrentClubAdminActivationState(supabase)
+      if (cancelled) return
+      if (lifecycleStatus === "approved_pending_billing" || lifecycleStatus === "billing_failed") {
+        navigate("/club-admin/setup/billing", { replace: true })
         return
       }
 

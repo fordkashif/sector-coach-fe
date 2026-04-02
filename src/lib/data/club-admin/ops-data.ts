@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { err, mapPostgrestError, ok, type DataError, type Result } from "@/lib/data/result"
 import { getBrowserSupabaseClient } from "@/lib/supabase/client"
 import { getBackendMode } from "@/lib/supabase/config"
+import { buildPackageLimitError, getTenantPackageUsage } from "@/lib/tenant/package-enforcement"
 
 export type ClubAdminUser = {
   id: string
@@ -161,6 +162,31 @@ export type ClubAdminBillingRecord = {
   paymentMethodLast4: string
 }
 
+export type ClubAdminActivationState = {
+  tenantId: string
+  lifecycleStatus: string | null
+  billingStatus: string | null
+  billingProvider: string | null
+  billingContactName: string | null
+  billingContactEmail: string | null
+  billingCycle: "monthly" | "annual" | null
+  requestedPlan: "starter" | "pro" | "enterprise" | null
+  organizationName: string | null
+  onboardingStep: string | null
+}
+
+export type ClubAdminPackageUpgradeRequest = {
+  id: string
+  tenantId: string
+  currentPackage: "starter" | "pro" | "enterprise"
+  requestedPackage: "starter" | "pro" | "enterprise"
+  reason: string | null
+  status: "pending" | "approved" | "rejected" | "cancelled"
+  reviewNotes: string | null
+  reviewedAt: string | null
+  createdAt: string
+}
+
 export async function getClubAdminOpsSnapshot(): Promise<Result<ClubAdminOpsSnapshot>> {
   const clientResult = requireSupabaseClient("getClubAdminOpsSnapshot")
   if (!clientResult.ok) return clientResult
@@ -262,6 +288,18 @@ export async function createCoachInvite(params: {
 
   const contextResult = await getCurrentClubAdminContext(clientResult.client)
   if (!contextResult.ok) return contextResult
+
+  const packageUsageResult = await getTenantPackageUsage(clientResult.client, contextResult.data.tenantId)
+  if (!packageUsageResult.ok) return packageUsageResult
+  if (
+    packageUsageResult.data.packageDefinition &&
+    packageUsageResult.data.usage.coaches >= packageUsageResult.data.packageDefinition.limits.coaches
+  ) {
+    return buildPackageLimitError({
+      packageDefinition: packageUsageResult.data.packageDefinition,
+      resourceLabel: "coaches",
+    })
+  }
 
   const { data, error } = await clientResult.client
     .from("coach_invites")
@@ -778,6 +816,145 @@ export async function getClubAdminTeamsSnapshot(): Promise<Result<ClubAdminTeamR
   )
 }
 
+export async function getCurrentClubAdminActivationState(): Promise<Result<ClubAdminActivationState>> {
+  const clientResult = requireSupabaseClient("getCurrentClubAdminActivationState")
+  if (!clientResult.ok) return clientResult
+
+  const contextResult = await getCurrentClubAdminContext(clientResult.client)
+  if (!contextResult.ok) return contextResult
+
+  const [activationResult, requestResult, tenantResult] = await Promise.all([
+    clientResult.client.rpc("get_current_club_admin_activation_state"),
+    clientResult.client
+      .from("tenant_provision_requests")
+      .select("requested_plan, organization_name")
+      .eq("provisioned_tenant_id", contextResult.data.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    clientResult.client.from("tenants").select("name").eq("id", contextResult.data.tenantId).maybeSingle(),
+  ])
+
+  if (activationResult.error) return err("UNKNOWN", activationResult.error.message, activationResult.error)
+  if (requestResult.error) return { ok: false, error: mapPostgrestError(requestResult.error) }
+  if (tenantResult.error) return { ok: false, error: mapPostgrestError(tenantResult.error) }
+
+  const activationRow = (Array.isArray(activationResult.data) ? activationResult.data[0] : activationResult.data) as
+    | {
+        tenant_id: string
+        lifecycle_status: string | null
+        billing_status: string | null
+        billing_provider: string | null
+        billing_contact_name: string | null
+        billing_contact_email: string | null
+        billing_cycle: "monthly" | "annual" | null
+        onboarding_step: string | null
+      }
+    | null
+
+  if (!activationRow?.tenant_id) return err("NOT_FOUND", "No activation state was found for the current club-admin account.")
+
+  return ok({
+    tenantId: activationRow.tenant_id,
+    lifecycleStatus: activationRow.lifecycle_status,
+    billingStatus: activationRow.billing_status,
+    billingProvider: activationRow.billing_provider,
+    billingContactName: activationRow.billing_contact_name,
+    billingContactEmail: activationRow.billing_contact_email,
+    billingCycle: activationRow.billing_cycle,
+    requestedPlan: (requestResult.data?.requested_plan as ClubAdminActivationState["requestedPlan"]) ?? null,
+    organizationName: requestResult.data?.organization_name ?? tenantResult.data?.name ?? null,
+    onboardingStep: activationRow.onboarding_step,
+  })
+}
+
+export async function completeCurrentClubAdminMockBillingSetup(params: {
+  billingContactName: string
+  billingContactEmail: string
+  billingCycle: "monthly" | "annual"
+}): Promise<Result<void>> {
+  const clientResult = requireSupabaseClient("completeCurrentClubAdminMockBillingSetup")
+  if (!clientResult.ok) return clientResult
+
+  const { error } = await clientResult.client.rpc("complete_current_club_admin_mock_billing_setup", {
+    p_billing_contact_name: params.billingContactName.trim(),
+    p_billing_contact_email: params.billingContactEmail.trim().toLowerCase(),
+    p_billing_cycle: params.billingCycle,
+  })
+
+  if (error) return err("UNKNOWN", error.message, error)
+  return ok(undefined)
+}
+
+export async function updateCurrentClubAdminOnboardingStep(step: "club_profile" | "branding" | "first_team" | "coach_access" | "review" | "complete"): Promise<Result<void>> {
+  const clientResult = requireSupabaseClient("updateCurrentClubAdminOnboardingStep")
+  if (!clientResult.ok) return clientResult
+
+  const { error } = await clientResult.client.rpc("update_current_club_admin_onboarding_step", {
+    p_step: step,
+  })
+
+  if (error) return err("UNKNOWN", error.message, error)
+  return ok(undefined)
+}
+
+export async function getClubAdminPackageUpgradeRequests(): Promise<Result<ClubAdminPackageUpgradeRequest[]>> {
+  const clientResult = requireSupabaseClient("getClubAdminPackageUpgradeRequests")
+  if (!clientResult.ok) return clientResult
+
+  const contextResult = await getCurrentClubAdminContext(clientResult.client)
+  if (!contextResult.ok) return contextResult
+
+  const { data, error } = await clientResult.client
+    .from("tenant_package_upgrade_requests")
+    .select("id, tenant_id, current_package, requested_package, reason, status, review_notes, reviewed_at, created_at")
+    .eq("tenant_id", contextResult.data.tenantId)
+    .order("created_at", { ascending: false })
+
+  if (error) return { ok: false, error: mapPostgrestError(error) }
+
+  return ok(
+    ((data as Array<{
+      id: string
+      tenant_id: string
+      current_package: ClubAdminPackageUpgradeRequest["currentPackage"]
+      requested_package: ClubAdminPackageUpgradeRequest["requestedPackage"]
+      reason: string | null
+      status: ClubAdminPackageUpgradeRequest["status"]
+      review_notes: string | null
+      reviewed_at: string | null
+      created_at: string
+    }> | null) ?? []).map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      currentPackage: row.current_package,
+      requestedPackage: row.requested_package,
+      reason: row.reason,
+      status: row.status,
+      reviewNotes: row.review_notes,
+      reviewedAt: row.reviewed_at,
+      createdAt: row.created_at,
+    })),
+  )
+}
+
+export async function submitClubAdminPackageUpgradeRequest(params: {
+  requestedPackage: "starter" | "pro" | "enterprise"
+  reason?: string
+}): Promise<Result<string>> {
+  const clientResult = requireSupabaseClient("submitClubAdminPackageUpgradeRequest")
+  if (!clientResult.ok) return clientResult
+
+  const { data, error } = await clientResult.client.rpc("submit_tenant_package_upgrade_request", {
+    p_requested_package: params.requestedPackage,
+    p_reason: params.reason?.trim() || null,
+  })
+
+  if (error) return err("UNKNOWN", error.message, error)
+  if (!data) return err("UNKNOWN", "Package upgrade request did not return an id.")
+  return ok(data as string)
+}
+
 export async function getClubAdminAssignableCoachOptions(): Promise<Result<ClubAdminAssignableCoachOption[]>> {
   const clientResult = requireSupabaseClient("getClubAdminAssignableCoachOptions")
   if (!clientResult.ok) return clientResult
@@ -846,6 +1023,18 @@ export async function createClubAdminTeam(params: {
 
   const teamName = params.name.trim()
   if (!teamName) return err("VALIDATION", "Team name is required.")
+
+  const packageUsageResult = await getTenantPackageUsage(clientResult.client, contextResult.data.tenantId)
+  if (!packageUsageResult.ok) return packageUsageResult
+  if (
+    packageUsageResult.data.packageDefinition &&
+    packageUsageResult.data.usage.teams >= packageUsageResult.data.packageDefinition.limits.teams
+  ) {
+    return buildPackageLimitError({
+      packageDefinition: packageUsageResult.data.packageDefinition,
+      resourceLabel: "teams",
+    })
+  }
 
   const { data, error } = await clientResult.client
     .from("teams")

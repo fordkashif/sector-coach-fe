@@ -34,6 +34,7 @@ const CoachTrainingPlanPage = lazy(() => import("@/app/(authenticated)/coach/tra
 const CoachAthleteDetailPage = lazy(() => import("@/app/(authenticated)/coach/athletes/[athleteId]/page"))
 const ClubAdminDashboardPage = lazy(() => import("@/app/(authenticated)/club-admin/dashboard/page"))
 const ClubAdminGetStartedPage = lazy(() => import("@/app/(authenticated)/club-admin/get-started/page"))
+const ClubAdminBillingSetupPage = lazy(() => import("@/app/(authenticated)/club-admin/setup/billing/page"))
 const ClubAdminProfilePage = lazy(() => import("@/app/(authenticated)/club-admin/profile/page"))
 const ClubAdminUsersPage = lazy(() => import("@/app/(authenticated)/club-admin/users/page"))
 const ClubAdminTeamsPage = lazy(() => import("@/app/(authenticated)/club-admin/teams/page"))
@@ -97,6 +98,7 @@ export function AppRouter() {
             <Route path="/coach/athletes/:athleteId" element={routeElement(CoachAthleteDetailPage)} />
 
             <Route path="/club-admin" element={<ClubAdminRedirectPage />} />
+            <Route path="/club-admin/setup/billing" element={routeElement(ClubAdminBillingSetupPage)} />
             <Route path="/club-admin/get-started" element={routeElement(ClubAdminGetStartedPage)} />
             <Route path="/club-admin/dashboard" element={routeElement(ClubAdminDashboardPage)} />
             <Route path="/club-admin/profile" element={routeElement(ClubAdminProfilePage)} />

@@ -20,17 +20,22 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import {
   createClubAdminTeam,
+  getClubAdminPackageUpgradeRequests,
+  getCurrentClubAdminActivationState,
   getClubAdminAssignableCoachOptions,
   getClubAdminTeamsSnapshot,
   setClubAdminTeamArchived,
   setClubAdminTeamLeadCoach,
+  submitClubAdminPackageUpgradeRequest,
   updateClubAdminTeam,
   type ClubAdminAssignableCoachOption,
   type ClubAdminTeamRecord,
 } from "@/lib/data/club-admin/ops-data"
 import { createAthleteInviteForCurrentCoach } from "@/lib/data/athlete/invite-data"
+import { getNextPackageTier, getPackageById, type PackageId } from "@/lib/billing/package-catalog"
 import { getCoachTeamsSnapshotForCurrentUser } from "@/lib/data/coach/teams-data"
 import { type EventGroup } from "@/lib/mock-data"
 import { type ClubTeam } from "@/lib/mock-club-admin"
@@ -72,6 +77,7 @@ export default function ClubAdminTeamsPage() {
   const [teams, setTeams] = useState<TeamCard[]>([])
   const [coachOptions, setCoachOptions] = useState<ClubAdminAssignableCoachOption[]>([])
   const [generatedInviteLinks, setGeneratedInviteLinks] = useState<Record<string, string>>({})
+  const [requestedPlan, setRequestedPlan] = useState<PackageId | null>(null)
   const [backendLoading, setBackendLoading] = useState(true)
   const [backendError, setBackendError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
@@ -79,6 +85,10 @@ export default function ClubAdminTeamsPage() {
   const [inviteTeamId, setInviteTeamId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [inviteSaving, setInviteSaving] = useState(false)
+  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false)
+  const [upgradeReason, setUpgradeReason] = useState("")
+  const [upgradeSaving, setUpgradeSaving] = useState(false)
+  const [pendingUpgradeRequest, setPendingUpgradeRequest] = useState<{ requestedPackage: PackageId; createdAt: string } | null>(null)
   const [athleteInviteEmail, setAthleteInviteEmail] = useState("")
   const [newTeamName, setNewTeamName] = useState("")
   const [newTeamEventGroup, setNewTeamEventGroup] = useState<EventGroup>("Sprint")
@@ -91,6 +101,9 @@ export default function ClubAdminTeamsPage() {
   const archivedTeams = useMemo(() => teams.filter((team) => team.status === "archived"), [teams])
   const totalAthletes = useMemo(() => teams.reduce((sum, team) => sum + team.athleteCount, 0), [teams])
   const currentEditTeam = useMemo(() => teams.find((team) => team.id === editTeamId) ?? null, [editTeamId, teams])
+  const packageDefinition = useMemo(() => getPackageById(requestedPlan), [requestedPlan])
+  const teamLimitReached = Boolean(packageDefinition && activeTeams.length >= packageDefinition.limits.teams)
+  const athleteLimitReached = Boolean(packageDefinition && totalAthletes >= packageDefinition.limits.athletes)
 
   useEffect(() => {
     if (currentEditTeam) {
@@ -132,10 +145,12 @@ export default function ClubAdminTeamsPage() {
         return
       }
 
-      const [teamResult, countResult, coachResult] = await Promise.all([
+      const [teamResult, countResult, coachResult, activationResult, upgradeResult] = await Promise.all([
         getClubAdminTeamsSnapshot(),
         getCoachTeamsSnapshotForCurrentUser(),
         getClubAdminAssignableCoachOptions(),
+        getCurrentClubAdminActivationState(),
+        getClubAdminPackageUpgradeRequests(),
       ])
 
       if (cancelled) return
@@ -151,6 +166,16 @@ export default function ClubAdminTeamsPage() {
       }
       if (!coachResult.ok) {
         setBackendError(coachResult.error.message)
+        setBackendLoading(false)
+        return
+      }
+      if (!activationResult.ok) {
+        setBackendError(activationResult.error.message)
+        setBackendLoading(false)
+        return
+      }
+      if (!upgradeResult.ok) {
+        setBackendError(upgradeResult.error.message)
         setBackendLoading(false)
         return
       }
@@ -171,6 +196,13 @@ export default function ClubAdminTeamsPage() {
           leadCoachLabel: team.leadCoachLabel,
         })),
       )
+      setRequestedPlan(activationResult.data.requestedPlan)
+      const firstPendingUpgrade = upgradeResult.data.find((item) => item.status === "pending") ?? null
+      setPendingUpgradeRequest(
+        firstPendingUpgrade
+          ? { requestedPackage: firstPendingUpgrade.requestedPackage, createdAt: firstPendingUpgrade.createdAt }
+          : null,
+      )
       setCoachOptions(coachResult.data)
       setBackendError(null)
       setBackendLoading(false)
@@ -190,9 +222,41 @@ export default function ClubAdminTeamsPage() {
 
   const selectedCreateCoach = coachOptions.find((coach) => coach.userId === newTeamLeadCoachUserId)
   const selectedEditCoach = coachOptions.find((coach) => coach.userId === editLeadCoachUserId)
+  const suggestedUpgradePackage = getNextPackageTier(requestedPlan)
+
+  const handleSubmitUpgradeRequest = async () => {
+    if (!isSupabaseMode || !suggestedUpgradePackage || pendingUpgradeRequest) return
+    setUpgradeSaving(true)
+    const result = await submitClubAdminPackageUpgradeRequest({
+      requestedPackage: suggestedUpgradePackage,
+      reason: upgradeReason,
+    })
+    setUpgradeSaving(false)
+
+    if (!result.ok) {
+      setBackendError(result.error.message)
+      return
+    }
+
+    setPendingUpgradeRequest({
+      requestedPackage: suggestedUpgradePackage,
+      createdAt: new Date().toISOString(),
+    })
+    setUpgradeReason("")
+    setUpgradeDialogOpen(false)
+    setBackendError(null)
+  }
 
   const handleCreate = async () => {
     if (!newTeamName.trim()) return
+    if (teamLimitReached) {
+      setBackendError(
+        packageDefinition
+          ? `${packageDefinition.label} allows up to ${packageDefinition.limits.teams} active team${packageDefinition.limits.teams === 1 ? "" : "s"}. Upgrade the package before creating another team.`
+          : "This tenant has reached the package limit for teams.",
+      )
+      return
+    }
     setSaving(true)
 
     if (isSupabaseMode) {
@@ -352,6 +416,15 @@ export default function ClubAdminTeamsPage() {
   }
 
   const handleGenerateInvite = async (teamId: string) => {
+    if (athleteLimitReached) {
+      setBackendError(
+        packageDefinition
+          ? `${packageDefinition.label} allows up to ${packageDefinition.limits.athletes} athletes. Upgrade the package before generating another athlete invite.`
+          : "This tenant has reached the package limit for athletes.",
+      )
+      return
+    }
+
     if (!isSupabaseMode) {
       setGeneratedInviteLinks((current) => ({ ...current, [teamId]: `/athlete/claim/${teamId}` }))
       return
@@ -411,6 +484,7 @@ export default function ClubAdminTeamsPage() {
           <Button
             type="button"
             variant="outline"
+            disabled={athleteLimitReached}
             className="h-11 rounded-full border-slate-200 px-5"
             onClick={() => {
               setAthleteInviteEmail("")
@@ -461,6 +535,69 @@ export default function ClubAdminTeamsPage() {
         </section>
       ) : null}
 
+      {packageDefinition ? (
+        <section className="rounded-[22px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600">
+          <p className="font-medium text-slate-950">{packageDefinition.label} package</p>
+          <p className="mt-1">
+            Active teams: {activeTeams.length}/{Number.isFinite(packageDefinition.limits.teams) ? packageDefinition.limits.teams : "Unlimited"} · Athletes:{" "}
+            {totalAthletes}/{Number.isFinite(packageDefinition.limits.athletes) ? packageDefinition.limits.athletes : "Unlimited"}
+          </p>
+          {teamLimitReached || athleteLimitReached ? (
+            <p className="mt-2 text-sm text-amber-700">
+              This tenant is at package capacity. Upgrade before creating more {teamLimitReached && athleteLimitReached ? "teams or athlete access" : teamLimitReached ? "teams" : "athlete access"}.
+            </p>
+          ) : null}
+          {teamLimitReached || athleteLimitReached ? (
+            pendingUpgradeRequest ? (
+              <p className="mt-2 text-sm text-[#1368ff]">
+                Upgrade request pending for {getPackageById(pendingUpgradeRequest.requestedPackage)?.label ?? pendingUpgradeRequest.requestedPackage}.
+              </p>
+            ) : suggestedUpgradePackage ? (
+              <div className="mt-3">
+                <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" className="h-10 rounded-full border-slate-200 px-4">
+                      Request upgrade to {getPackageById(suggestedUpgradePackage)?.label ?? suggestedUpgradePackage}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                      <DialogTitle>Request package upgrade</DialogTitle>
+                      <DialogDescription>
+                        Submit an upgrade request to move this tenant from {packageDefinition.label} to {getPackageById(suggestedUpgradePackage)?.label ?? suggestedUpgradePackage}.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        Current package: <span className="font-medium text-slate-950">{packageDefinition.label}</span><br />
+                        Requested package: <span className="font-medium text-slate-950">{getPackageById(suggestedUpgradePackage)?.label ?? suggestedUpgradePackage}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="team-upgrade-reason">Reason</Label>
+                        <Textarea
+                          id="team-upgrade-reason"
+                          value={upgradeReason}
+                          onChange={(event) => setUpgradeReason(event.target.value)}
+                          placeholder="Explain why the tenant needs more capacity."
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="button" variant="outline" className="border-slate-200" onClick={() => setUpgradeDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="button" disabled={upgradeSaving} onClick={() => void handleSubmitUpgradeRequest()}>
+                        {upgradeSaving ? "Submitting..." : "Submit upgrade request"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : null
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <div className="mobile-card-primary">
           <div className="flex items-start justify-between gap-4 border-b border-slate-200 pb-4">
@@ -470,7 +607,7 @@ export default function ClubAdminTeamsPage() {
             </div>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
-                <Button className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white hover:opacity-95">
+                <Button disabled={teamLimitReached} className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white hover:opacity-95">
                   Create team
                 </Button>
               </DialogTrigger>
@@ -509,12 +646,17 @@ export default function ClubAdminTeamsPage() {
                       </Select>
                     </div>
                   </div>
+                  {teamLimitReached && packageDefinition ? (
+                    <p className="rounded-[16px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                      {packageDefinition.label} allows up to {packageDefinition.limits.teams} active team{packageDefinition.limits.teams === 1 ? "" : "s"}. Upgrade the package before creating another team.
+                    </p>
+                  ) : null}
                 </div>
                 <DialogFooter>
                   <Button type="button" variant="outline" className="border-slate-200" onClick={() => setCreateOpen(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" disabled={saving || !newTeamName.trim()} onClick={() => void handleCreate()}>
+                  <Button type="button" disabled={saving || !newTeamName.trim() || teamLimitReached} onClick={() => void handleCreate()}>
                     {saving ? "Saving..." : "Create team"}
                   </Button>
                 </DialogFooter>
@@ -574,6 +716,7 @@ export default function ClubAdminTeamsPage() {
           actions={
             <Button
               type="button"
+              disabled={teamLimitReached}
               className="h-11 rounded-full bg-[linear-gradient(135deg,#1f8cff_0%,#4759ff_100%)] px-5 text-white hover:opacity-95"
               onClick={() => setCreateOpen(true)}
             >
@@ -673,6 +816,11 @@ export default function ClubAdminTeamsPage() {
                 onChange={(event) => setAthleteInviteEmail(event.target.value)}
               />
             </div>
+            {athleteLimitReached && packageDefinition ? (
+              <p className="rounded-[16px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                {packageDefinition.label} allows up to {packageDefinition.limits.athletes} athletes. Upgrade the package before generating another athlete invite.
+              </p>
+            ) : null}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" className="border-slate-200" onClick={() => setInviteTeamId(null)}>
@@ -680,7 +828,7 @@ export default function ClubAdminTeamsPage() {
             </Button>
             <Button
               type="button"
-              disabled={inviteSaving || !inviteTeamId || !athleteInviteEmail.trim()}
+              disabled={inviteSaving || !inviteTeamId || !athleteInviteEmail.trim() || athleteLimitReached}
               onClick={async () => {
                 if (!inviteTeamId) return
                 setInviteSaving(true)

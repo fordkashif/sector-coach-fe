@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { setSessionCookies } from "@/lib/auth-session"
+import { getPackageById, getRecommendedPackage, packageOptions, type PackageId } from "@/lib/billing/package-catalog"
 import { getCoachTeamsSnapshotForCurrentUser } from "@/lib/data/coach/teams-data"
 import { submitMockTenantProvisionRequest } from "@/lib/mock-platform-admin"
 import type { AccountRequest } from "@/lib/mock-club-admin"
@@ -70,24 +71,6 @@ const organizationTypeOptions = [
   { value: "federation", label: "Federation" },
 ] as const
 
-const packageOptions = [
-  {
-    value: "starter",
-    label: "Starter",
-    description: "Single-team launch for smaller clubs getting into digital planning and testing.",
-  },
-  {
-    value: "pro",
-    label: "Pro",
-    description: "Multi-coach operating package for growing clubs with broader athlete management needs.",
-  },
-  {
-    value: "enterprise",
-    label: "Enterprise",
-    description: "Multi-program rollout with provisioning, oversight, and support expectations.",
-  },
-] as const
-
 const emptyRequestForm: RequestFormState = {
   fullName: "",
   email: "",
@@ -129,6 +112,24 @@ export default function LoginPage() {
   const [requestErrors, setRequestErrors] = useState<Partial<Record<RequestField, string>>>({})
   const [requestSubmitted, setRequestSubmitted] = useState(false)
   const [demoCredentials, setDemoCredentials] = useState<DemoCredentialMap | null>(null)
+  const parsedCoachCount = Number.parseInt(requestForm.expectedCoachCount || "0", 10)
+  const parsedAthleteCount = Number.parseInt(requestForm.expectedAthleteCount || "0", 10)
+  const selectedPackage = getPackageById(requestForm.requestedPlan)
+  const recommendedPackageId =
+    parsedCoachCount >= 0 && parsedAthleteCount >= 0 ? getRecommendedPackage(parsedCoachCount, parsedAthleteCount) : null
+  const packageFitWarnings =
+    selectedPackage &&
+    Number.isFinite(selectedPackage.limits.coaches) &&
+    Number.isFinite(selectedPackage.limits.athletes)
+      ? [
+          ...(parsedCoachCount > selectedPackage.limits.coaches
+            ? [`Projected coach count exceeds ${selectedPackage.label} capacity.`]
+            : []),
+          ...(parsedAthleteCount > selectedPackage.limits.athletes
+            ? [`Projected athlete count exceeds ${selectedPackage.label} capacity.`]
+            : []),
+        ]
+      : []
   const safeRedirect = (() => {
     const candidate = searchParams.get("redirect")
     return candidate && candidate.startsWith("/") ? candidate : null
@@ -433,7 +434,7 @@ export default function LoginPage() {
       jobTitle: requestForm.jobTitle,
       organization: requestForm.organization,
       organizationType: requestForm.organizationType,
-      requestedPlan: requestForm.requestedPlan as "starter" | "pro" | "enterprise",
+      requestedPlan: requestForm.requestedPlan as PackageId,
       organizationWebsite: requestForm.organizationWebsite,
       region: requestForm.region,
       expectedCoachCount: Math.max(0, coachCount),
@@ -853,16 +854,16 @@ export default function LoginPage() {
                         >
                           <SelectValue placeholder="Select package" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {packageOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                          <SelectContent>
+                            {packageOptions.map((option) => (
+                            <SelectItem key={option.id} value={option.id}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
                       </Select>
                       <p className="text-sm leading-6 text-slate-500">
-                        {packageOptions.find((option) => option.value === requestForm.requestedPlan)?.description ??
+                        {getPackageById(requestForm.requestedPlan)?.description ??
                           "Choose the package that best matches your rollout scope."}
                       </p>
                       {requestErrors.requestedPlan ? <p className="text-sm text-red-600">{requestErrors.requestedPlan}</p> : null}
@@ -939,6 +940,21 @@ export default function LoginPage() {
                         />
                       </div>
                     </div>
+
+                    {packageFitWarnings.length > 0 ? (
+                      <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+                        <p className="font-semibold">Package fit warning</p>
+                        <p>
+                          Your projected rollout is larger than the selected package. You can still submit this request, but we recommend{" "}
+                          {getPackageById(recommendedPackageId)?.label ?? "a higher package"}.
+                        </p>
+                        <ul className="mt-2 list-disc pl-5">
+                          {packageFitWarnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
 
                     <div className="space-y-2.5">
                       <Label htmlFor="request-notes" className="text-sm font-medium text-slate-700">
