@@ -43,6 +43,7 @@ type SubmitMockTenantProvisionRequestInput = {
   jobTitle: string
   organization: string
   organizationType: string
+  requestedPlan: "starter" | "pro" | "enterprise"
   organizationWebsite: string
   region: string
   expectedCoachCount: number
@@ -128,7 +129,7 @@ export function submitMockTenantProvisionRequest(input: SubmitMockTenantProvisio
     organizationType: input.organizationType.trim() || null,
     organizationWebsite: input.organizationWebsite.trim() || null,
     region: input.region.trim() || null,
-    requestedPlan: "starter",
+    requestedPlan: input.requestedPlan,
     expectedSeats: Math.max(0, input.expectedCoachCount) + Math.max(0, input.expectedAthleteCount),
     expectedCoachCount: Math.max(0, input.expectedCoachCount),
     expectedAthleteCount: Math.max(0, input.expectedAthleteCount),

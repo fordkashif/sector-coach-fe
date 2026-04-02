@@ -130,9 +130,7 @@ export default function ResetPasswordPage() {
     <main className="mx-auto flex min-h-screen w-full max-w-3xl items-center p-4 sm:p-6">
       <section className="w-full rounded-[28px] border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-8">
         <div className="space-y-2">
-          <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-[0_12px_40px_rgba(31,140,255,0.25)]">
-            <img src="/app-icon.png" alt="SKTR Coach" className="h-full w-full object-cover" />
-          </div>
+          <img src="/app-icon.png" alt="SKTR Coach" className="h-16 w-16 object-contain" />
           <p className="text-xs font-semibold uppercase tracking-[0.34em] text-[#6fb6ff]">SKTR Coach</p>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Account recovery</p>
           <h1 className="text-3xl font-semibold tracking-[-0.04em] text-slate-950">
