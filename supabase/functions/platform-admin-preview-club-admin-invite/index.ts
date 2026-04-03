@@ -143,7 +143,7 @@ Deno.serve(async (request) => {
   }
 
   const generateResult = await serviceClient.auth.admin.generateLink({
-    type: "magiclink",
+    type: "invite",
     email: requestorEmail,
     options: {
       redirectTo: `${redirectBaseUrl}/login`,
@@ -177,7 +177,7 @@ Deno.serve(async (request) => {
     })
   }
 
-  const actionLink = `${redirectBaseUrl}/club-admin/claim?token_hash=${encodeURIComponent(tokenHash)}&type=magiclink`
+  const actionLink = `${redirectBaseUrl}/club-admin/claim?token_hash=${encodeURIComponent(tokenHash)}&type=invite`
 
   return new Response(JSON.stringify({ actionLink }), {
     status: 200,
