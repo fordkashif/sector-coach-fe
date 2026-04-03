@@ -1278,7 +1278,9 @@ export default function PlatformAdminRequestsPage() {
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
                       <div className="space-y-1.5">
-                        <p className="text-sm font-medium text-slate-900">{request.requestedPlan}</p>
+                        <p className="text-sm font-medium text-slate-900">
+                          {getPackageById(request.requestedPlan)?.label ?? toTitleCaseLabel(request.requestedPlan, "Package")}
+                        </p>
                         <p className="text-xs text-slate-500">
                           {request.expectedSeats} projected seats
                         </p>
