@@ -122,15 +122,6 @@ function StatusBadge({ status }: { status: PlatformAdminRequestRecord["status"] 
   )
 }
 
-function InfoPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-sm font-medium leading-5 text-slate-950">{value}</p>
-    </div>
-  )
-}
-
 function LifecycleBadge({ lifecycleStatus }: { lifecycleStatus: PlatformAdminRequestRecord["lifecycleStatus"] }) {
   if (!lifecycleStatus) {
     return (
@@ -164,24 +155,6 @@ function TablePrimaryStatus({ request }: { request: PlatformAdminRequestRecord }
   if (request.status === "cancelled") return <StatusBadge status="cancelled" />
   if (request.lifecycleStatus) return <LifecycleBadge lifecycleStatus={request.lifecycleStatus} />
   return <StatusBadge status={request.status} />
-}
-
-function RequestMetaCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string
-  value: string
-  detail?: string | null
-}) {
-  return (
-    <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-sm font-medium leading-5 text-slate-950">{value}</p>
-      {detail ? <p className="mt-1 text-xs leading-5 text-slate-500">{detail}</p> : null}
-    </div>
-  )
 }
 
 function toTitleCaseLabel(value: string | null | undefined, fallback: string) {
@@ -222,7 +195,6 @@ export default function PlatformAdminRequestsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
-  const [localInviteLinks, setLocalInviteLinks] = useState<Record<string, string>>({})
   const [localNotificationLinks, setLocalNotificationLinks] = useState<
     Array<{ id: string; recipientEmail?: string; subject?: string; actionLink?: string }>
   >([])
@@ -381,12 +353,6 @@ export default function PlatformAdminRequestsPage() {
             : item,
         ),
       )
-      if (result.data.accessInviteActionLink) {
-        setLocalInviteLinks((current) => ({
-          ...current,
-          [requestId]: result.data.accessInviteActionLink!,
-        }))
-      }
       setError(result.data.accessInviteError)
       setInfo(
         result.data.accessInviteError
@@ -470,12 +436,6 @@ export default function PlatformAdminRequestsPage() {
           : item,
         ),
       )
-    if (result.data.actionLink) {
-      setLocalInviteLinks((current) => ({
-        ...current,
-        [requestId]: result.data.actionLink!,
-      }))
-    }
     setError(null)
     setInfo(
       result.data.actionLink
@@ -514,12 +474,6 @@ export default function PlatformAdminRequestsPage() {
     }
 
     setSubmittingId(null)
-  }
-
-  const handleOpenLocalInviteLink = (requestId: string) => {
-    const actionLink = localInviteLinks[requestId]
-    if (!actionLink) return
-    window.open(actionLink, "_blank", "noopener,noreferrer")
   }
 
   const handleDispatchPendingEmails = async () => {
@@ -688,297 +642,242 @@ export default function PlatformAdminRequestsPage() {
     setSubmittingId(null)
   }
 
-  const renderExpandedRequestDetails = (request: PlatformAdminRequestRecord) => (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <InfoPill label="Expected seats" value={String(request.expectedSeats)} />
-        <InfoPill
-          label="Roster mix"
-          value={`${request.expectedCoachCount ?? 0} coaches - ${request.expectedAthleteCount ?? 0} athletes`}
-        />
-        <InfoPill label="Submitted" value={formatDateLabel(request.createdAt, "Not submitted")} />
-        <InfoPill label="Reviewed" value={formatDateLabel(request.reviewedAt)} />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <InfoPill label="Lifecycle" value={request.lifecycleStatus ? lifecycleLabels[request.lifecycleStatus] : "Not set"} />
-        <InfoPill label="Billing" value={request.billingStatus ? billingLabels[request.billingStatus] : "Not started"} />
-        <InfoPill label="Billing provider" value={request.billingProvider ?? "Mock billing"} />
-        <InfoPill label="Billing cycle" value={request.billingCycle ?? "Not selected"} />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <InfoPill label="Job title" value={request.jobTitle ?? "Not provided"} />
-        <InfoPill label="Organization type" value={request.organizationType ?? "Not provided"} />
-        <InfoPill label="Region" value={request.region ?? "Not provided"} />
-        <InfoPill
-          label="Target start"
-          value={request.desiredStartDate ? new Date(request.desiredStartDate).toLocaleDateString() : "Flexible"}
-        />
-      </div>
-
-      {(request.billingContactName || request.billingContactEmail || request.billingFailedAt) ? (
-        <div className="rounded-[22px] border border-slate-200 bg-[#f8fbff] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Billing contact state</p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <InfoPill label="Contact name" value={request.billingContactName ?? "Not provided"} />
-            <InfoPill label="Contact email" value={request.billingContactEmail ?? "Not provided"} />
-            <InfoPill label="Failure recorded" value={formatDateLabel(request.billingFailedAt, "No failure logged")} />
-          </div>
-        </div>
-      ) : null}
-
-      {request.organizationWebsite ? (
-        <div className="rounded-[22px] border border-slate-200 bg-[#f8fbff] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Organization website</p>
-          <a
-            href={request.organizationWebsite}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 block break-all text-sm leading-6 text-[#1368ff] underline-offset-4 hover:underline"
-          >
-            {request.organizationWebsite}
-          </a>
-        </div>
-      ) : null}
-
-      {request.provisionedTenantId ? (
-        <div className="status-panel-success px-4 py-4">
-          <p className="status-text-success text-[11px] font-semibold uppercase tracking-[0.16em]">Provisioned tenant</p>
-          <p className="status-text-success mt-2 break-all text-sm leading-6">{request.provisionedTenantId}</p>
-        </div>
-      ) : null}
-
-      {request.provisionedTenantId ? (
-        <div
-          className={cn(
-            "rounded-[22px] border px-4 py-4",
-            request.accessInviteSentAt ? "border-[#cfe2ff] bg-[#f6faff]" : "border-amber-200 bg-amber-50",
-          )}
-        >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Initial access invite</p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">
-            {request.accessInviteSentAt
-              ? `Sent ${formatDateLabel(request.accessInviteSentAt, "Unknown time")}`
-              : "Invite has not been confirmed as sent yet."}
-          </p>
-          {request.accessInviteLastError ? <p className="mt-2 text-sm text-rose-700">{request.accessInviteLastError}</p> : null}
-          {localInviteLinks[request.id] ? (
-            <div className="mt-3 space-y-3 rounded-[18px] border border-[#cfe2ff] bg-white px-3 py-3">
-              <p className="text-xs font-medium text-slate-950">Local dev access link</p>
-              <p className="break-all font-mono text-xs text-slate-600">{localInviteLinks[request.id]}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9 rounded-full border-slate-200 px-4"
-                  onClick={() => void handleCopyInviteLink(request.id)}
-                >
-                  Copy link
-                </Button>
-                <Button
-                  type="button"
-                  className="h-9 rounded-full px-4"
-                  onClick={() => handleOpenLocalInviteLink(request.id)}
-                >
-                  Open link
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {request.notes ? (
-        <div className="rounded-[22px] border border-slate-200 bg-[#f8fbff] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Request notes</p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">{request.notes}</p>
-        </div>
-      ) : null}
-
-      {request.status !== "pending" && request.reviewNotes ? (
-        <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Review notes</p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">{request.reviewNotes}</p>
-        </div>
-      ) : null}
-    </div>
-  )
-
   const activeRequest = activeRequestId ? requests.find((item) => item.id === activeRequestId) ?? null : null
 
   const renderReviewDecisionContent = (request: PlatformAdminRequestRecord) => {
     const isPending = request.status === "pending"
     const isSubmitting = submittingId === request.id
+    const packageLabel = getPackageById(request.requestedPlan)?.label ?? toTitleCaseLabel(request.requestedPlan, "Package")
+    const organizationTypeLabel = toTitleCaseLabel(request.organizationType, "Not specified")
+    const detailRows: Array<Array<{ label: string; value: string; detail?: string }>> = [
+      [
+        {
+          label: "Organization",
+          value: organizationTypeLabel,
+          detail: request.region ? `Region: ${request.region}` : undefined,
+        },
+        {
+          label: "Requestor",
+          value: request.jobTitle ?? "Title not provided",
+          detail: `Contact: ${request.requestorEmail}`,
+        },
+        {
+          label: "Requested package",
+          value: packageLabel,
+          detail: `${request.expectedCoachCount ?? 0} coaches · ${request.expectedAthleteCount ?? 0} athletes`,
+        },
+      ],
+      [
+        { label: "Expected seats", value: String(request.expectedSeats), detail: undefined },
+        {
+          label: "Roster mix",
+          value: `${request.expectedCoachCount ?? 0} coaches - ${request.expectedAthleteCount ?? 0} athletes`,
+          detail: undefined,
+        },
+        { label: "Submitted", value: formatDateLabel(request.createdAt, "Not submitted"), detail: undefined },
+        { label: "Reviewed", value: formatDateLabel(request.reviewedAt), detail: undefined },
+      ],
+      [
+        { label: "Lifecycle", value: request.lifecycleStatus ? lifecycleLabels[request.lifecycleStatus] : "Not set", detail: undefined },
+        { label: "Billing", value: request.billingStatus ? billingLabels[request.billingStatus] : "Not started", detail: undefined },
+        { label: "Billing provider", value: request.billingProvider ?? "mock-billing", detail: undefined },
+        { label: "Billing cycle", value: request.billingCycle ?? "Not selected", detail: undefined },
+      ],
+      [
+        { label: "Job title", value: request.jobTitle ?? "Not provided", detail: undefined },
+        { label: "Organization type", value: organizationTypeLabel, detail: undefined },
+        { label: "Region", value: request.region ?? "Not provided", detail: undefined },
+        {
+          label: "Target start",
+          value: request.desiredStartDate ? new Date(request.desiredStartDate).toLocaleDateString() : "Flexible",
+          detail: undefined,
+        },
+      ],
+    ]
 
     return (
       <div className="space-y-5">
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-              {getPackageById(request.requestedPlan)?.label ?? toTitleCaseLabel(request.requestedPlan, "Package")}
+              {packageLabel}
             </span>
             <TablePrimaryStatus request={request} />
           </div>
-          <div>
+          <div className="space-y-1">
             <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">{request.organizationName}</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {request.requestorName} · {request.requestorEmail}
-            </p>
+            <p className="text-sm text-slate-500">{request.requestorName} - {request.requestorEmail}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <RequestMetaCard
-              label="Organization"
-              value={toTitleCaseLabel(request.organizationType, "Not specified")}
-              detail={request.region ? `Region: ${request.region}` : "Region not provided"}
-            />
-            <RequestMetaCard
-              label="Requestor"
-              value={request.jobTitle ?? "Title not provided"}
-              detail={`Contact: ${request.requestorEmail}`}
-            />
-            <RequestMetaCard
-              label="Requested package"
-              value={getPackageById(request.requestedPlan)?.label ?? toTitleCaseLabel(request.requestedPlan, "Package")}
-              detail={`${request.expectedCoachCount ?? 0} coaches · ${request.expectedAthleteCount ?? 0} athletes`}
-            />
+
+          <div className="rounded-[28px] border border-slate-200 bg-white px-5 py-5">
+            {detailRows.map((row, rowIndex) => (
+              <div
+                key={`row-${rowIndex}`}
+                className={cn(
+                  "grid gap-5 py-5",
+                  row.length === 3 ? "md:grid-cols-3" : "md:grid-cols-4",
+                  rowIndex === 0 && "pt-0",
+                  rowIndex === detailRows.length - 1 && "pb-0",
+                  rowIndex < detailRows.length - 1 && "border-b border-slate-200",
+                )}
+              >
+                {row.map((item) => (
+                  <div key={item.label} className="space-y-1">
+                    <p className="text-sm text-slate-500">{item.label}</p>
+                    <p className="text-sm font-semibold leading-6 text-slate-950">{item.value}</p>
+                    {item.detail ? <p className="text-sm leading-6 text-slate-500">{item.detail}</p> : null}
+                  </div>
+                ))}
+              </div>
+            ))}
+
+            {request.organizationWebsite ? (
+              <div className="border-t border-slate-200 pt-5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Organization website</p>
+                <a
+                  href={request.organizationWebsite}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 block break-all text-base text-[#1368ff] underline-offset-4 hover:underline"
+                >
+                  {request.organizationWebsite}
+                </a>
+              </div>
+            ) : null}
           </div>
-          {renderExpandedRequestDetails(request)}
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+        <div className="space-y-3 border-t border-slate-200 pt-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Decision</p>
-          <div className="mt-3 space-y-3">
-            <Textarea
-              rows={5}
-              value={reviewNotes[request.id] ?? request.reviewNotes ?? ""}
-              onChange={(event) =>
-                setReviewNotes((current) => ({
-                  ...current,
-                  [request.id]: event.target.value,
-                }))
-              }
-              disabled={!isPending || isSubmitting}
-              placeholder="Add the review note or provisioning instruction."
-              className="rounded-[20px] border-slate-200 bg-white"
-            />
+          <Textarea
+            rows={5}
+            value={reviewNotes[request.id] ?? request.reviewNotes ?? ""}
+            onChange={(event) =>
+              setReviewNotes((current) => ({
+                ...current,
+                [request.id]: event.target.value,
+              }))
+            }
+            disabled={!isPending || isSubmitting}
+            placeholder="Add the review note or provisioning instruction."
+            className="rounded-[20px] border-slate-200 bg-white"
+          />
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              type="button"
+              disabled={!isPending || isSubmitting}
+              className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#3f8cff_100%)] text-white hover:opacity-95"
+              onClick={() => void handleReview(request.id, "approved")}
+            >
+              Approve and provision
+            </Button>
+            <Button
+              type="button"
+              disabled={!isPending || isSubmitting}
+              variant="outline"
+              className="h-11 rounded-full border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:text-rose-700"
+              onClick={() => void handleReview(request.id, "rejected")}
+            >
+              Reject
+            </Button>
+          </div>
+
+          {request.provisionedTenantId ? (
             <div className="grid gap-3 sm:grid-cols-2">
               <Button
                 type="button"
-                disabled={!isPending || isSubmitting}
-                className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#3f8cff_100%)] text-white hover:opacity-95"
-                onClick={() => void handleReview(request.id, "approved")}
-              >
-                Approve and provision
-              </Button>
-              <Button
-                type="button"
-                disabled={!isPending || isSubmitting}
+                disabled={isSubmitting}
                 variant="outline"
-                className="h-11 rounded-full border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:text-rose-700"
-                onClick={() => void handleReview(request.id, "rejected")}
+                className="h-11 rounded-full border-slate-200 bg-white text-slate-900 hover:border-[#cfe2ff] hover:bg-[#eef5ff] hover:text-[#1553b7]"
+                onClick={() => void handleResendInvite(request.id)}
               >
-                Reject
+                Resend initial access invite
               </Button>
-            </div>
-
-            {request.provisionedTenantId ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              {isLocalPreviewEnabled ? (
                 <Button
                   type="button"
                   disabled={isSubmitting}
                   variant="outline"
                   className="h-11 rounded-full border-slate-200 bg-white text-slate-900 hover:border-[#cfe2ff] hover:bg-[#eef5ff] hover:text-[#1553b7]"
-                  onClick={() => void handleResendInvite(request.id)}
+                  onClick={() => void handleCopyInviteLink(request.id)}
                 >
-                  Resend initial access invite
+                  Copy initial access link
                 </Button>
-                {isLocalPreviewEnabled ? (
-                  <Button
-                    type="button"
-                    disabled={isSubmitting}
-                    variant="outline"
-                    className="h-11 rounded-full border-slate-200 bg-white text-slate-900 hover:border-[#cfe2ff] hover:bg-[#eef5ff] hover:text-[#1553b7]"
-                    onClick={() => void handleCopyInviteLink(request.id)}
-                  >
-                    Copy initial access link
-                  </Button>
-                ) : null}
-                {request.lifecycleStatus === "approved_pending_billing" ? (
-                  <Button
-                    type="button"
-                    disabled={isSubmitting}
-                    variant="outline"
-                    className="h-11 rounded-full border-amber-200 bg-white text-amber-700 hover:bg-amber-50 hover:text-amber-700"
-                    onClick={() =>
-                      void handleLifecycleTransition(
-                        request.id,
-                        "billing_failed",
-                        "failed",
-                        `Billing marked as failed for ${request.organizationName}.`,
-                      )
-                    }
-                  >
-                    Mark billing failed
-                  </Button>
-                ) : null}
-                {request.lifecycleStatus === "billing_failed" ? (
-                  <Button
-                    type="button"
-                    disabled={isSubmitting}
-                    variant="outline"
-                    className="h-11 rounded-full border-slate-200 bg-white text-slate-900 hover:border-[#cfe2ff] hover:bg-[#eef5ff] hover:text-[#1553b7]"
-                    onClick={() =>
-                      void handleLifecycleTransition(
-                        request.id,
-                        "approved_pending_billing",
-                        "pending",
-                        `Billing reset to pending for ${request.organizationName}.`,
-                      )
-                    }
-                  >
-                    Retry billing
-                  </Button>
-                ) : null}
-                {(request.lifecycleStatus === "active_onboarding" || request.lifecycleStatus === "active") ? (
-                  <Button
-                    type="button"
-                    disabled={isSubmitting}
-                    variant="outline"
-                    className="h-11 rounded-full border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:text-rose-700"
-                    onClick={() =>
-                      void handleLifecycleTransition(
-                        request.id,
-                        "suspended",
-                        request.billingStatus,
-                        `Tenant suspended for ${request.organizationName}.`,
-                      )
-                    }
-                  >
-                    Suspend tenant
-                  </Button>
-                ) : null}
-                {request.lifecycleStatus === "suspended" ? (
-                  <Button
-                    type="button"
-                    disabled={isSubmitting}
-                    className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#3f8cff_100%)] text-white hover:opacity-95"
-                    onClick={() =>
-                      void handleLifecycleTransition(
-                        request.id,
-                        request.previousLifecycleStatus ?? "active",
-                        request.billingStatus === "pending" ? "active" : request.billingStatus,
-                        `Tenant reactivated for ${request.organizationName}.`,
-                      )
-                    }
-                  >
-                    Reactivate tenant
-                  </Button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+              ) : null}
+              {request.lifecycleStatus === "approved_pending_billing" ? (
+                <Button
+                  type="button"
+                  disabled={isSubmitting}
+                  variant="outline"
+                  className="h-11 rounded-full border-amber-200 bg-white text-amber-700 hover:bg-amber-50 hover:text-amber-700"
+                  onClick={() =>
+                    void handleLifecycleTransition(
+                      request.id,
+                      "billing_failed",
+                      "failed",
+                      `Billing marked as failed for ${request.organizationName}.`,
+                    )
+                  }
+                >
+                  Mark billing failed
+                </Button>
+              ) : null}
+              {request.lifecycleStatus === "billing_failed" ? (
+                <Button
+                  type="button"
+                  disabled={isSubmitting}
+                  variant="outline"
+                  className="h-11 rounded-full border-slate-200 bg-white text-slate-900 hover:border-[#cfe2ff] hover:bg-[#eef5ff] hover:text-[#1553b7]"
+                  onClick={() =>
+                    void handleLifecycleTransition(
+                      request.id,
+                      "approved_pending_billing",
+                      "pending",
+                      `Billing reset to pending for ${request.organizationName}.`,
+                    )
+                  }
+                >
+                  Retry billing
+                </Button>
+              ) : null}
+              {(request.lifecycleStatus === "active_onboarding" || request.lifecycleStatus === "active") ? (
+                <Button
+                  type="button"
+                  disabled={isSubmitting}
+                  variant="outline"
+                  className="h-11 rounded-full border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:text-rose-700"
+                  onClick={() =>
+                    void handleLifecycleTransition(
+                      request.id,
+                      "suspended",
+                      request.billingStatus,
+                      `Tenant suspended for ${request.organizationName}.`,
+                    )
+                  }
+                >
+                  Suspend tenant
+                </Button>
+              ) : null}
+              {request.lifecycleStatus === "suspended" ? (
+                <Button
+                  type="button"
+                  disabled={isSubmitting}
+                  className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#3f8cff_100%)] text-white hover:opacity-95"
+                  onClick={() =>
+                    void handleLifecycleTransition(
+                      request.id,
+                      request.previousLifecycleStatus ?? "active",
+                      request.billingStatus === "pending" ? "active" : request.billingStatus,
+                      `Tenant reactivated for ${request.organizationName}.`,
+                    )
+                  }
+                >
+                  Reactivate tenant
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     )
@@ -1076,12 +975,6 @@ export default function PlatformAdminRequestsPage() {
       <DataSurfaceToolbar
         eyebrow="Queue controls"
         title="Queue filters"
-        description="Search by organization, requestor, role, region, plan, or tenant id, then narrow the queue by status."
-        status={
-          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500">
-            Status: <span className="ml-1 font-medium text-slate-700">{statusFilterLabels[statusFilter]}</span>
-          </div>
-        }
         controls={
           <>
             <div className="flex items-center justify-between gap-3 sm:hidden">
@@ -1113,34 +1006,36 @@ export default function PlatformAdminRequestsPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            <div className="hidden items-center gap-3 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 lg:flex">
-              <HugeiconsIcon icon={SquareIcon} className={cn("size-4", desktopViewMode === "cards" ? "text-[#1368ff]" : "text-slate-400")} />
-              <Switch
-                checked={desktopViewMode === "table"}
-                onCheckedChange={(checked) => setDesktopViewMode(checked ? "table" : "cards")}
-                aria-label="Switch between card and table views for the request queue"
-              />
-              <HugeiconsIcon icon={TableIcon} className={cn("size-4", desktopViewMode === "table" ? "text-[#1368ff]" : "text-slate-400")} />
-            </div>
-            <div className="hidden items-center gap-2 sm:flex">
-              <Tooltip>
+            <div className="hidden items-center gap-3 sm:flex">
+              <div className="flex items-center rounded-full border border-slate-200 bg-white px-3 py-2 shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+                <div className="flex items-center gap-3">
+                  <HugeiconsIcon
+                    icon={SquareIcon}
+                    className={cn("size-4", desktopViewMode === "cards" ? "text-[#1368ff]" : "text-slate-400")}
+                  />
+                  <Switch
+                    checked={desktopViewMode === "table"}
+                    onCheckedChange={(checked) => setDesktopViewMode(checked ? "table" : "cards")}
+                    aria-label="Switch between card and table views for the request queue"
+                  />
+                  <HugeiconsIcon
+                    icon={TableIcon}
+                    className={cn("size-4", desktopViewMode === "table" ? "text-[#1368ff]" : "text-slate-400")}
+                  />
+                </div>
+                <div className="mx-4 h-6 w-px bg-slate-200" />
                 <DropdownMenu>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className={cn(
-                          toolbarIconButtonClassName,
-                          statusFilter !== "all" && "border-[#1368ff] bg-[#eef5ff] text-[#1368ff]",
-                        )}
-                        aria-label={`Filter requests by status. Current filter: ${statusFilterLabels[statusFilter]}`}
-                      >
-                        <HugeiconsIcon icon={FilterHorizontalIcon} className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-10 rounded-full px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950"
+                      aria-label={`Filter requests by status. Current filter: ${statusFilterLabels[statusFilter]}`}
+                    >
+                      <HugeiconsIcon icon={FilterHorizontalIcon} className="mr-2 size-4" />
+                      Status: {statusFilterLabels[statusFilter]}
+                    </Button>
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-52">
                     <DropdownMenuLabel>Status filter</DropdownMenuLabel>
                     <DropdownMenuRadioGroup
@@ -1155,8 +1050,7 @@ export default function PlatformAdminRequestsPage() {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <TooltipContent side="bottom">Filter requests</TooltipContent>
-              </Tooltip>
+              </div>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -1211,7 +1105,7 @@ export default function PlatformAdminRequestsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search request queue"
-            className="h-12 rounded-full border-slate-200 bg-slate-50 px-5 text-base lg:max-w-2xl"
+            className="h-14 rounded-full border-slate-200 bg-slate-50 px-5 text-base"
           />
         }
       />
@@ -1334,8 +1228,6 @@ export default function PlatformAdminRequestsPage() {
                 <TableHead className="px-5 py-4 text-xs uppercase tracking-[0.16em] text-slate-500">Requestor</TableHead>
                 <TableHead className="px-5 py-4 text-xs uppercase tracking-[0.16em] text-slate-500">Status</TableHead>
                 <TableHead className="px-5 py-4 text-xs uppercase tracking-[0.16em] text-slate-500">Plan</TableHead>
-                <TableHead className="px-5 py-4 text-xs uppercase tracking-[0.16em] text-slate-500">Roster</TableHead>
-                <TableHead className="px-5 py-4 text-xs uppercase tracking-[0.16em] text-slate-500">Submitted</TableHead>
                 <TableHead className="px-5 py-4 text-xs uppercase tracking-[0.16em] text-slate-500">Target start</TableHead>
                 <TableHead className="px-5 py-4 text-right text-xs uppercase tracking-[0.16em] text-slate-500">Actions</TableHead>
               </TableRow>
@@ -1347,6 +1239,7 @@ export default function PlatformAdminRequestsPage() {
                     <TableCell className="px-5 py-4 align-top">
                       <div className="space-y-2">
                         <p className="font-semibold text-slate-950">{request.organizationName}</p>
+                        <p className="text-xs text-slate-500">{formatDateLabel(request.createdAt, "Not submitted")}</p>
                         <div className="flex flex-wrap gap-2">
                           <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                             {request.organizationType ?? "Organization"}
@@ -1389,18 +1282,6 @@ export default function PlatformAdminRequestsPage() {
                         <p className="text-xs text-slate-500">
                           {request.expectedSeats} projected seats
                         </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 align-top">
-                      <div className="space-y-1.5">
-                        <p className="text-sm font-medium text-slate-900">{request.expectedCoachCount ?? 0} coaches</p>
-                        <p className="text-xs text-slate-500">{request.expectedAthleteCount ?? 0} athletes</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="px-5 py-4 align-top">
-                      <div className="space-y-1.5">
-                        <p className="text-sm font-medium text-slate-900">{formatDateLabel(request.createdAt, "Not submitted")}</p>
-                        <p className="text-xs text-slate-500">Request intake</p>
                       </div>
                     </TableCell>
                     <TableCell className="px-5 py-4 align-top">
