@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/drawer"
 import { EmptyStateCard } from "@/components/ui/empty-state-card"
 import { StandardPageHeader } from "@/components/ui/standard-page-header"
+import { toast } from "@/hooks/use-toast"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -193,7 +194,6 @@ function RequestSummaryRow({
 
 export default function PlatformAdminRequestsPage() {
   const [confirmAction, setConfirmAction] = useState<{ requestId: string; status: "approved" | "rejected" } | null>(null)
-  const [completionNotice, setCompletionNotice] = useState<{ title: string; description: string } | null>(null)
   const [requests, setRequests] = useState<PlatformAdminRequestRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -363,15 +363,15 @@ export default function PlatformAdminRequestsPage() {
           : result.data.accessInviteActionLink
             ? `Tenant approved for ${target.requestorEmail}. Local dev generated a clickable billing/setup access link instead of sending email.`
             : `Tenant approved and initial billing/setup access invite sent to ${target.requestorEmail}.`,
-      )
-      setConfirmAction(null)
-      setActiveRequestId(null)
-      setCompletionNotice({
-        title: "Request approved",
-        description: `${target.organizationName} was approved and moved into billing setup.`,
-      })
-      setSubmittingId(null)
-      return
+        )
+        setConfirmAction(null)
+        setActiveRequestId(null)
+        toast({
+          title: "Request approved",
+          description: `${target.organizationName} was approved and moved into billing setup.`,
+        })
+        setSubmittingId(null)
+        return
     }
 
     const result = await reviewTenantProvisionRequest({
@@ -401,15 +401,15 @@ export default function PlatformAdminRequestsPage() {
       ),
     )
     setError(null)
-    setInfo(`Request ${status} for ${target.requestorEmail}.`)
-    setConfirmAction(null)
-    setActiveRequestId(null)
-    setCompletionNotice({
-      title: "Request rejected",
-      description: `${target.organizationName} was rejected and removed from the active intake workload.`,
-    })
-    setSubmittingId(null)
-  }
+      setInfo(`Request ${status} for ${target.requestorEmail}.`)
+      setConfirmAction(null)
+      setActiveRequestId(null)
+      toast({
+        title: "Request rejected",
+        description: `${target.organizationName} was rejected and removed from the active intake workload.`,
+      })
+      setSubmittingId(null)
+    }
 
   const handleResendInvite = async (requestId: string) => {
     const target = requests.find((item) => item.id === requestId)
@@ -479,16 +479,16 @@ export default function PlatformAdminRequestsPage() {
       return
     }
 
-    try {
-      await navigator.clipboard.writeText(result.data.actionLink)
-      setError(null)
-      setInfo(`Copied initial access link for ${target.requestorEmail}.`)
-      setCompletionNotice({
-        title: "Link copied",
-        description: `Initial access link copied for ${target.organizationName}.`,
-      })
-    } catch {
-      setError("Invite preview generated, but clipboard copy failed.")
+      try {
+        await navigator.clipboard.writeText(result.data.actionLink)
+        setError(null)
+        setInfo(`Copied initial access link for ${target.requestorEmail}.`)
+        toast({
+          title: "Link copied",
+          description: `Initial access link copied for ${target.organizationName}.`,
+        })
+      } catch {
+        setError("Invite preview generated, but clipboard copy failed.")
       setInfo(result.data.actionLink)
     }
 
@@ -532,7 +532,7 @@ export default function PlatformAdminRequestsPage() {
       await navigator.clipboard.writeText(actionLink)
       setError(null)
       setInfo("Copied notification action link.")
-      setCompletionNotice({
+      toast({
         title: "Link copied",
         description: "Notification action link copied successfully.",
       })
@@ -977,32 +977,6 @@ export default function PlatformAdminRequestsPage() {
                     : confirmAction.status === "approved"
                       ? "Confirm approval"
                       : "Confirm rejection"}
-                </Button>
-              </DialogFooter>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(completionNotice)} onOpenChange={(open) => (!open ? setCompletionNotice(null) : null)}>
-        <DialogContent className="rounded-[28px] border border-slate-200 bg-white sm:max-w-[520px]">
-          {completionNotice ? (
-            <>
-              <DialogHeader className="text-left">
-                <DialogTitle className="text-2xl font-semibold tracking-[-0.04em] text-slate-950">
-                  {completionNotice.title}
-                </DialogTitle>
-                <DialogDescription className="text-sm leading-6 text-slate-500">
-                  {completionNotice.description}
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="sm:justify-end">
-                <Button
-                  type="button"
-                  className="h-11 rounded-full bg-[linear-gradient(135deg,#1368ff_0%,#3f8cff_100%)] text-white hover:opacity-95"
-                  onClick={() => setCompletionNotice(null)}
-                >
-                  Close
                 </Button>
               </DialogFooter>
             </>

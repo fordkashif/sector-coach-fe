@@ -23,6 +23,10 @@ type GenerateLinkResponse = {
   hashedToken?: string
 }
 
+function isAlreadyRegisteredError(message: string | undefined) {
+  return typeof message === "string" && message.toLowerCase().includes("already been registered")
+}
+
 function normalizeRedirectBaseUrl(value: string | null | undefined) {
   const candidate = value?.trim()
   if (!candidate) return null
@@ -191,18 +195,30 @@ Deno.serve(async (request) => {
     })
   }
 
-  const generateResult = await serviceClient.auth.admin.generateLink({
-    type: "invite",
-    email: requestorEmail,
-    options: {
-      redirectTo: `${redirectBaseUrl}/login`,
-      data: {
-        tenant_id: tenantId,
-        role: "club-admin",
-        display_name: requestorName,
-      },
+  const generateOptions = {
+    redirectTo: `${redirectBaseUrl}/login`,
+    data: {
+      tenant_id: tenantId,
+      role: "club-admin",
+      display_name: requestorName,
     },
+  }
+
+  let tokenType: "invite" | "magiclink" = "invite"
+  let generateResult = await serviceClient.auth.admin.generateLink({
+    type: tokenType,
+    email: requestorEmail,
+    options: generateOptions,
   })
+
+  if (generateResult.error && isAlreadyRegisteredError(generateResult.error.message)) {
+    tokenType = "magiclink"
+    generateResult = await serviceClient.auth.admin.generateLink({
+      type: tokenType,
+      email: requestorEmail,
+      options: generateOptions,
+    })
+  }
 
   const sentAt = new Date().toISOString()
 
@@ -237,7 +253,7 @@ Deno.serve(async (request) => {
     })
   }
 
-  const appLink = `${redirectBaseUrl}/club-admin/claim?token_hash=${encodeURIComponent(tokenHash)}&type=invite`
+  const appLink = `${redirectBaseUrl}/club-admin/claim?token_hash=${encodeURIComponent(tokenHash)}&type=${tokenType}`
 
   if (isLocalOrigin(redirectBaseUrl)) {
     await serviceClient
