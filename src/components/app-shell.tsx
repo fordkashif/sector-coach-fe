@@ -165,6 +165,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [resolvedCoachTeamId, setResolvedCoachTeamId] = useState<string | null>(() =>
     role === "coach" ? getCookieValue(COACH_TEAM_COOKIE) : null,
   )
+  const isRestrictedClubAdminSetupRoute =
+    pathname === "/club-admin/setup/billing" || pathname === "/club-admin/get-started"
   const useAthleteHomeActionNav = pathname.startsWith("/athlete/home")
   const hideMobileNav = mobileDetailMode
   const useSectionBoundTopTone =
@@ -358,11 +360,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         Skip to main content
       </a>
 
-      <aside className="hidden w-[320px] shrink-0 border-r border-white/10 bg-[linear-gradient(180deg,rgba(7,17,34,0.98)_0%,rgba(9,21,41,0.96)_100%)] text-white lg:flex lg:flex-col">
-        <div className="flex items-center gap-3 px-7 pb-6 pt-7">
-          <img src="/app-icon.png" alt="SKTR Coach" className="size-14 object-contain" />
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6fb6ff]">SKTR Coach</p>
+      {!isRestrictedClubAdminSetupRoute ? (
+        <aside className="hidden w-[320px] shrink-0 border-r border-white/10 bg-[linear-gradient(180deg,rgba(7,17,34,0.98)_0%,rgba(9,21,41,0.96)_100%)] text-white lg:flex lg:flex-col">
+          <div className="flex items-center gap-3 px-7 pb-6 pt-7">
+            <img src="/app-icon.png" alt="SKTR Coach" className="size-14 object-contain" />
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#6fb6ff]">SKTR Coach</p>
             <p className="text-sm text-white/60">Performance workspace</p>
           </div>
         </div>
@@ -431,7 +434,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="text-xs uppercase tracking-[0.18em] text-white/55">Exit</span>
           </Button>
         </div>
-      </aside>
+        </aside>
+      ) : null}
 
       <div
         className={cn(
@@ -542,6 +546,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="flex shrink-0 items-center gap-2">
+                {isRestrictedClubAdminSetupRoute ? null : (
+                  <>
                 <Badge className="hidden rounded-full border-none bg-white/10 px-3 py-1.5 text-white lg:inline-flex">{userEmail}</Badge>
 
                 <Button
@@ -759,8 +765,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     >
                       Sign out
                     </DropdownMenuItem>
-                  </DropdownMenuContent>
+                        </DropdownMenuContent>
                 </DropdownMenu>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -777,11 +785,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <nav className={cn("fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden", hideMobileNav && "hidden")}>
-        {useAthleteHomeActionNav ? (
-          <div className="mx-auto max-w-md">
-            <Link
-              to="/athlete/log"
+      {!isRestrictedClubAdminSetupRoute ? (
+        <nav className={cn("fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden", hideMobileNav && "hidden")}>
+          {useAthleteHomeActionNav ? (
+            <div className="mx-auto max-w-md">
+              <Link
+                to="/athlete/log"
               className="flex h-[60px] items-center justify-center gap-2 rounded-[28px] bg-[linear-gradient(135deg,rgba(7,17,34,0.94)_0%,rgba(9,20,39,0.92)_100%)] px-5 text-white shadow-[0_20px_60px_rgba(5,12,24,0.34)]"
             >
               <span className="text-sm font-semibold">Start Workout</span>
@@ -822,9 +831,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 )
               })}
             </div>
-          </div>
-        )}
-      </nav>
+            </div>
+          )}
+        </nav>
+      ) : null}
     </div>
   )
 }

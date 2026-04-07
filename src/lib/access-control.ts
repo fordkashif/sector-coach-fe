@@ -66,13 +66,13 @@ export function evaluateAccess(input: AccessInput): AccessResult {
     if (requiresBillingSetup && !isBillingSetup) {
       return { allowed: false, reason: "billing-incomplete", redirectTo: "/club-admin/setup/billing" }
     }
-    if (!requiresBillingSetup && isBillingSetup) {
+    if (clubAdminLifecycleStatus !== null && !requiresBillingSetup && isBillingSetup) {
       return { allowed: false, reason: "forbidden-role", redirectTo: "/club-admin/get-started" }
     }
-    if (!clubAdminOnboardingComplete && !isGetStarted) {
+    if (clubAdminLifecycleStatus !== null && !requiresBillingSetup && !clubAdminOnboardingComplete && !isGetStarted) {
       return { allowed: false, reason: "onboarding-incomplete", redirectTo: "/club-admin/get-started" }
     }
-    if (clubAdminOnboardingComplete && isGetStarted) {
+    if (clubAdminLifecycleStatus !== null && !requiresBillingSetup && clubAdminOnboardingComplete && isGetStarted) {
       return { allowed: false, reason: "forbidden-role", redirectTo: "/club-admin/dashboard" }
     }
   }

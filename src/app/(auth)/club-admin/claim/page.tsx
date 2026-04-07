@@ -93,6 +93,8 @@ export default function ClubAdminClaimPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isSupabaseMode = getBackendMode() === "supabase"
+  const tokenHash = searchParams.get("token_hash")
+  const tokenType = searchParams.get("type")
   const [profile, setProfile] = useState<ClubAdminProfileRecord>(defaultProfile)
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -123,8 +125,6 @@ export default function ClubAdminClaimPage() {
 
     const bootstrapClaim = async () => {
       setLoading(true)
-      const tokenHash = searchParams.get("token_hash")
-      const tokenType = searchParams.get("type")
 
       if (tokenHash && tokenType) {
         const verifyResult = await supabase.auth.verifyOtp({
@@ -188,7 +188,7 @@ export default function ClubAdminClaimPage() {
     return () => {
       cancelled = true
     }
-  }, [isSupabaseMode, navigate, searchParams])
+  }, [isSupabaseMode, navigate, tokenHash, tokenType])
 
   const handleSubmit = async () => {
     if (password !== confirmPassword) {
